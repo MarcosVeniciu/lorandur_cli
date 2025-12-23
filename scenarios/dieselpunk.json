@@ -1,0 +1,153 @@
+{
+  "pack_id": "scenario_dieselpunk",
+  "name": "Dieselpunk: Estrada da Fúria",
+  "version": "1.0",
+  "description": "Carros envenenados, água ainda mais. No futuro desértico, sobrevivência é ter um galão de diesel e água.",
+  "initial_state_template": {
+    "vehicle": {
+      "name": "Interceptor",
+      "type": "Carro de Sucata",
+      "structure": 5,
+      "max_structure": 5,
+      "mods": []
+    },
+    "resources": {
+      "fuel": 1,
+      "water": 1,
+      "ammo": 3
+    },
+    "flags": {
+      "is_thirsty": false,
+      "in_combat": false,
+      "is_racing": false
+    }
+  },
+  "world_data": {
+    "tables": {
+      "plot": {
+        "col1_event": [
+          "As estradas estão mais perigosas", 
+          "As reservas de combustível foram sabotadas", 
+          "Um tremor de terra revelou recursos valiosos", 
+          "A corrida anual vai acontecer", 
+          "A água acabou nos reservatórios", 
+          "Uma profecia antiga vai se realizar"
+        ],
+        "col2_goal": [
+          "Juntar recursos essenciais para passar a estação", 
+          "Convencer os sobreviventes a se unirem", 
+          "Conseguir viajar para um Refúgio", 
+          "Provar suas habilidades no volante", 
+          "Recuperar evidências de uma zona proibida", 
+          "Atravessar o deserto com seu carro"
+        ],
+        "col3_consequence": [
+          "Será preso pelo chefe de guerra!", 
+          "Vai ser exilado para o deserto.", 
+          "Seu carro vai virar sucata!", 
+          "Será responsabilizado pelas consequências", 
+          "Morrerá sem combustível", 
+          "Pessoas próximas irão sofrer"
+        ]
+      },
+      "archetypes": [
+        "Músculo: Grande e pesado. Machucar e fazer façanhas físicas.",
+        "Cabeça: Pensamento ágil, opera sistemas e máquinas antigas.",
+        "Volante: Fera das estradas. Ninguém pilota como você.",
+        "Vigia: Olhos atentos no horizonte e mira precisa.",
+        "Boca: Carisma em pessoa. Sabe o que dizer, mesmo que traga problemas.",
+        "Novato: Quer provar seu valor. Nunca conheceu outro mundo."
+      ],
+      "scenes": {
+        "places": [
+          "Arena de Lutas / Ferro-velho", 
+          "Fila da ração / Armazém de comida", 
+          "Mercado de pulgas / Bar movimentado", 
+          "Mansão de um senhor de armas / Festival de Música", 
+          "Torre de Vigia / Pista de Obstáculos / Escombros", 
+          "Oficina de carros / Laboratório de química"
+        ],
+        "chars": [
+          "Chefão regional", 
+          "Oráculo eremita", 
+          "Bandidos", 
+          "Sobrevivente solitário", 
+          "Grupo de famintos", 
+          "Sábio recluso"
+        ],
+        "events": [
+          "Um tiroteio começa inesperadamente!", 
+          "Acidente na estrada impede o avanço", 
+          "Uma conversa sincera ao volante", 
+          "Uma sombra do passado volta a te atormentar", 
+          "Emboscada de saqueadores ferais!", 
+          "Convite para uma corrida de carros"
+        ]
+      },
+      "ideas": {
+        "subjects": ["Não tem jeito, tem que refazer", "É pelo bem da Tribo", "Na feira de troca tem isso!", "Ondas de calor terríveis", "Anarquia ou morte", "A estrada sem fim"],
+        "actions": ["Rachar", "Correr", "Sabotar", "Negociar", "Armar", "Obstruir"],
+        "things": ["Galão de combustível", "Metralhadora Gatling", "Instrumento Musical", "Muda de planta", "Analgésicos", "Sucatas Variadas"],
+        "qualities": ["Resistente", "Personalizado", "Agressivo", "Oculto", "Frágil", "Arruinado"]
+      },
+      "extra_dieselpunk": {
+        "cars": ["Gurgel Monstro", "Maverick Camuflado", "Camaro Amarelo", "Belina Envenenada", "Trailer Reforçado", "Harley de Sucata"],
+        "scrap": ["Ferro / Alumínio", "Cobre / Eletrônico", "Madeira / Natural", "Explosivos / Munição", "Armas / Lâminas", "Alimento / Remédios"],
+        "past": ["Livro", "Remédios", "Fotografia", "Computador", "Toca-fitas", "Papéis"],
+        "hope": ["Combustível suficiente.", "O santuário existe.", "Arrumar o carro.", "Não precisar lutar.", "Que estejam vivos.", "Encontrar amor."]
+      }
+    },
+    "rules": [
+      {
+        "rule_id": "RULE_DIESEL_THIRST",
+        "category": "TYPE_A_STATE_CHECKER",
+        "description": "Regra de Sobrevivência: Consumo de água com o tempo.",
+        "status": { "trigger_event": "ON_TIME_PASS" },
+        "mechanic_enforcement": {
+          "operation": {
+            "target_path": "$.state.packages.scenario_dieselpunk.resources.water",
+            "action": "DECREMENT",
+            "value_formula": "1"
+          },
+          "state_check": {
+            "target_value": "$.state.packages.scenario_dieselpunk.resources.water",
+            "condition": "LESS_THAN_OR_EQUAL",
+            "threshold_value": 0,
+            "on_true": { "set_value": [{ "key": "$.state.packages.scenario_dieselpunk.flags.is_thirsty", "value": true }] },
+            "on_false": { "set_value": [{ "key": "$.state.packages.scenario_dieselpunk.flags.is_thirsty", "value": false }] }
+          }
+        },
+        "modifiers": {
+             "disadvantage_criteria": ["Desidratado", "Sede Extrema"]
+        },
+        "narrative_injections": [
+          {
+            "conditions": { "check_type": "VALUE_MATCH", "target": "$.state.packages.scenario_dieselpunk.flags.is_thirsty", "value": true },
+            "text": "ALERTA: Seus lábios estão rachados. A sede causa DESVANTAGEM em testes físicos."
+          }
+        ]
+      },
+      {
+        "rule_id": "RULE_DIESEL_RACE",
+        "category": "TYPE_F_PROCEDURAL_GEN",
+        "description": "Regra Especial: Corrida e Manobras.",
+        "modifiers": {
+            "advantage_criteria": [
+                "Arquétipo Volante", 
+                "Uso de Nitro", 
+                "Manobra: Atrapalhar Oponente (se estiver na frente)",
+                "Veículo mais rápido"
+            ],
+            "disadvantage_criteria": [
+                "Manobra: Pisar Fundo (Arriscado)", 
+                "Pneu Furado", 
+                "Motor Falhando"
+            ]
+        },
+        "mechanic_enforcement": {
+            "notes": "Corrida Simples: 5 Testes, precisa de 3 Acertos. Pisar Fundo: Conta como 2 acertos se passar."
+        }
+      }
+    ]
+  }
+}
