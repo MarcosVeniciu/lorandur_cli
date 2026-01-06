@@ -1,0 +1,61 @@
+{
+  "_comentario": "prehistoria.json - O Scenario Pack",
+  "_funcao": "Define regras específicas, tabelas e elementos para o cenário da Pré-História",
+  "version": "2.0",
+  
+  "cenario": {
+    "nome": "Pré-História",
+    "descricao": "Era uma vez, quando o mundo era jovem e os primeiros humanos vagueavam pela terra...",
+    "tema": "sobrevivencia_tribal",
+    "ambientacao": "africa_ancestral_20000_ac"
+  },
+  
+  "supported_scopes": [
+    "Nível 2 (Escopo Local - A Tribo): Foco no dia a dia da tribo, disputas de liderança, rituais, defesa da caverna e caça nas imediações.",
+    "Nível 3 (Escopo Regional - A Migração): A tribo precisa se mover. Foco em encontrar novas terras, atravessar biomas perigosos e sobrevivência em jornada.",
+    "Nível 4 (Escopo Global - O Mundo Selvagem): Eventos que alteram o mundo, como a Era do Gelo, erupções vulcânicas ou guerras de extinção entre espécies (ex: Humanos vs Neandertais)."
+  ],
+
+  "regras_especificas": [
+    {
+      "id": "regra_fome",
+      "nome": "Regra da Fome",
+      "descricao": "A cada 10 turnos, personagem deve fazer teste de sobrevivência ou perder 1 ponto de vida",
+      "implementacao": "auto_trigger"
+    },
+    {
+      "id": "regra_fogo",
+      "nome": "Arte do Fogo", 
+      "descricao": "Criar fogo requer sucesso em teste de inteligência (4+)",
+      "implementacao": "por_acao"
+    }
+  ],
+  
+  "tabelas": {
+    "lugares": {
+      "nomes": ["Caverna das Sombras", "Rio Cristalino", "Campo de Ossos", "Árvore Ancestral", "Pedreira Sagrada"],
+      "caracteristicas": {
+        "seguranca": ["seguro", "parcialmente seguro", "perigoso", "altamente perigoso"],
+        "recursos": ["nenhum", "agua", "frutas", "animais", "pedras", "madeira"]
+      }
+    },
+    "personagens": {
+      "nomes": ["Khan o Caçador", "Naia a Curandeira", "Trok o Guerreiro", "Uma a Cantora"],
+      "tipos": ["chefe_tribo", "curandeiro", "guerreiro", "artesa", "explorador"],
+      "personalidades": ["sabio", "impulsivo", "cauteloso", "corajoso", "sombrio"]
+    },
+    "eventos": [
+      "Tempestade súbita se aproxima",
+      "Grupo de mamutes passa ao longe", 
+      "Descoberta de pegadas misteriosas",
+      "Lua cheia ilumina a planície",
+      "Sons estranhos vindo da floresta"
+    ]
+  },
+  
+  "trama_inicial": {
+    "cenario_abertura": "Você desperta no interior de uma caverna escura. O som de gotas d'água ecoa pelas paredes de pedra. Ao sair, vê uma vasta savana sob o sol nascente, onde sua tribo já começa o dia.",
+    "objetivo_inicial": "Sobreviva os primeiros dias e ganhe a confiança de sua tribo.",
+    "desafio_imediato": "A caça está escassa e alguns membros da tribo olham para você com desconfiança."
+  }
+}

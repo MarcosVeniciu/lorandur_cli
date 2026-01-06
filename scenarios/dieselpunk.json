@@ -1,0 +1,119 @@
+{
+  "pack_id": "scenario_dieselpunk",
+  "name": "Dieselpunk: Estrada da Fúria",
+  "version": "2.0",
+  "description": "Carros envenenados, água ainda mais. No futuro desértico, sobrevivência é ter um galão de diesel e água.",
+  "genre": "Dieselpunk",
+  "tone": "High Octane Action & Survival",
+  "supported_scopes": [
+    "Nível 2 (Escopo Local - O Refúgio): A trama ocorre em um assentamento isolado ou base, focando em disputas de poder, defesa de perímetro ou intriga social.",
+    "Nível 3 (Escopo Regional - A Estrada): A trama é uma jornada. O foco é a travessia de A para B, gestão de combustível, perseguições e encontros na estrada."
+  ],
+  "initial_state_template": {
+    "vehicle": {
+      "name": "Interceptor",
+      "type": "Carro de Sucata",
+      "structure": 5,
+      "max_structure": 5,
+      "mods": []
+    },
+    "resources": {
+      "fuel": 1,
+      "water": 1,
+      "ammo": 3
+    },
+    "flags": {
+      "is_thirsty": false,
+      "in_combat": false,
+      "is_racing": false
+    }
+  },
+  "world_data": {
+    "tables": {
+      "plot": {
+        "col1_event": [
+          "As estradas estão mais perigosas", 
+          "As reservas de combustível foram sabotadas", 
+          "Um tremor de terra revelou recursos valiosos", 
+          "A corrida anual vai acontecer", 
+          "A água acabou nos reservatórios", 
+          "Uma profecia antiga vai se realizar"
+        ],
+        "col2_goal": [
+          "Juntar recursos essenciais para passar a estação", 
+          "Convencer os sobreviventes a se unirem", 
+          "Conseguir viajar para um Refúgio", 
+          "Provar suas habilidades no volante", 
+          "Recuperar evidências de uma zona segura", 
+          "Vingar a morte de um aliado"
+        ],
+        "col3_consequence": [
+          "O Oásis secará para sempre",
+          "O Senhor da Guerra tomará tudo",
+          "Seu veículo será destruído",
+          "Você será deixado para morrer no deserto",
+          "A Cidadela cairá",
+          "O segredo da água limpa será perdido"
+        ]
+      }
+    },
+    "rules": [
+      {
+        "rule_id": "RULE_DIESEL_THIRST",
+        "category": "TYPE_A_STATUS_CHECK",
+        "description": "Mecânica de Sede no Deserto.",
+        "status": {
+          "trigger_event": "ON_TIME_PASS",
+          "conditions": {
+            "check_type": "RANGE",
+            "target": "$.resources.water",
+            "max": 0,
+            "threshold_value": 0,
+            "on_true": { "set_value": [{ "key": "$.state.packages.scenario_dieselpunk.flags.is_thirsty", "value": true }] },
+            "on_false": { "set_value": [{ "key": "$.state.packages.scenario_dieselpunk.flags.is_thirsty", "value": false }] }
+          }
+        },
+        "modifiers": {
+             "disadvantage_criteria": ["Desidratado", "Sede Extrema"]
+        },
+        "narrative_injections": [
+          {
+            "conditions": { "check_type": "VALUE_MATCH", "target": "$.state.packages.scenario_dieselpunk.flags.is_thirsty", "value": true },
+            "text": "ALERTA: Seus lábios estão rachados. A sede causa DESVANTAGEM em testes físicos."
+          }
+        ]
+      },
+      {
+        "rule_id": "RULE_DIESEL_RACE",
+        "category": "TYPE_F_PROCEDURAL_GEN",
+        "description": "Regra Especial: Corrida e Manobras.",
+        "modifiers": {
+            "advantage_criteria": [
+                "Arquétipo Volante", 
+                "Uso de Nitro", 
+                "Manobra: Atrapalhar Oponente (se estiver na frente)",
+                "Veículo mais rápido"
+            ],
+            "disadvantage_criteria": [
+                "Manobra: Pisar Fundo (Arriscado)", 
+                "Pneu Furado", 
+                "Motor Falhando"
+            ]
+        }
+      }
+    ]
+  },
+  "locations": [
+    "A Cidadela de Ferro",
+    "O Deserto de Sal",
+    "A Rodovia Infinita",
+    "O Oásis Tóxico",
+    "As Ruínas da Velha Capital"
+  ],
+  "archetypes": [
+    "Motorista",
+    "Mecânico",
+    "Guerreiro da Estrada",
+    "Imperator"
+  ]
+}
