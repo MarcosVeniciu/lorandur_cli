@@ -1,2 +1,0 @@
-# Módulo ANPA (Arquitetura de Narrativa Preditiva) (Documentação de Design Arquitetura de Narrativa Preditiva em Árvore (ANPA).md)
-# Este módulo será responsável pela Arquitetura de Narrativa Preditiva em Árvore
