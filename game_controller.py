@@ -1,250 +1,147 @@
-import sys
 import os
 import json
+import random
 import time
 from datetime import datetime
 
-# Adiciona raiz ao path para garantir imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from modules.pipeline_engine import PipelineEngine
-from modules.scene_generator import SceneGenerator
-from modules.rule_arbiter import RuleArbiter
-from modules.anpa_engine import ANPAEngine
-from modules.ens_narrator import ENSNarrator
+# Importa o gerenciador de arquivos e os módulos
 from utils.file_manager import FileManager
+from modules.trama import ModuloTrama
+from modules.frente_aventura import ModuloFrente
 
 class GameController:
-    def __init__(self, save_path):
-        self.save_path = save_path
-        self.fm = FileManager()
+    def __init__(self):
+        self.file_manager = FileManager()
+        self.game_state = {}
         
-        # Carrega o estado do jogo
-        try:
-            with open(save_path, 'r', encoding='utf-8') as f:
-                self.game_state = json.load(f)
-        except Exception as e:
-            print(f"[ERRO] Não foi possível carregar o save: {e}")
-            raise e
-
-        # Inicializa Módulos
-        self.pipeline = PipelineEngine()
-        self.scene_gen = SceneGenerator()
-        self.arbiter = RuleArbiter()
-        self.anpa = ANPAEngine()
-        self.narrator = ENSNarrator()
-
-        # Verifica se é um jogo novo (Turno 1 e sem Frente de Campanha)
-        turn_count = self.game_state['meta'].get('turn_count', 1)
-        front = self.game_state['state'].get('campaign_front')
-
-        # 5. Setup Inicial Automático (Se não houver Frente de Campanha)
-        # Verifica se é None ou Vazio
-        if turn_count == 1 and not front:
-            print("[CONTROLLER] Disparando Evento: ON_CAMPAIGN_START")
-            self._initialize_campaign_structure()
+        # Instancia Módulos
+        self.trama_module = ModuloTrama()
+        self.frente_module = ModuloFrente()
+        # Futuros: self.scene_module, etc.
         
-        # Garante que a árvore de previsão exista para o primeiro turno
-        self._ensure_prediction_ready()
-
-    def _initialize_campaign_structure(self):
-        """Executa o Pipeline de Setup para criar o Vilão e a Trama."""
-        # 1. Executa a Regra de Setup
-        campaign_data = self.pipeline.execute_rule(
-            "RULE_SETUP_ADVENTURE", 
-            self.game_state, 
-            context_override={"SCENARIO_CONTEXT": self.game_state['world_data'].get('description', '')}
-        )
+    def start_new_campaign(self, scenario_name: str, player_name: str):
+        """Inicia uma nova campanha do zero."""
+        print(f"\n[SISTEMA] Inicializando cenário: {scenario_name}...")
         
-        if campaign_data:
-            # Salva o resultado no estado
-            self.game_state['state']['campaign_front'] = campaign_data
-            
-            # Tenta pegar o nome da ameaça para logar
-            danger = campaign_data.get('danger', 'Desconhecido')
-            print(f"[CONTROLLER] Setup concluído: {danger}")
-            
-            # Gera a primeira cena imediatamente após o setup
-            self._trigger_scene_transition("START_GAME")
+        # 1. Carregar dados
+        world_data = self.file_manager.load_scenario(scenario_name)
+        if not world_data:
+            print("Erro crítico: Cenário não encontrado.")
+            return
+
+        # 2. Estado Inicial
+        self.game_state = {
+            "metadata": {
+                "created_at": datetime.now().isoformat(),
+                "player_name": player_name,
+                "scenario": scenario_name,
+                "turn_count": 0
+            },
+            "world_data": world_data,
+            "character": {},
+            "current_plot": {},
+            "adventure_front": {}, # Será preenchido pelo ModuloFrente
+            "scenes_history": [],
+            "current_scene": {},
+            "inventory": [],
+            "flags": {}
+        }
+
+        # 3. Pipeline
+        success = self._execute_setup_pipeline()
+        
+        if success:
             self.save_game()
+            print("\n[SISTEMA] Campanha criada com sucesso!")
+            self._display_adventure_status()
         else:
-            print("[ERRO CRÍTICO] Falha ao gerar Campanha. Pipeline retornou None.")
+            print("\n[SISTEMA] Falha na criação da campanha.")
 
-    def process_turn(self, user_input: str) -> str:
-        """Ciclo Principal: Input -> Arbiter -> ANPA -> ENS -> Output"""
-        print(f"[CONTROLLER] Processando: '{user_input}'")
+    def _execute_setup_pipeline(self) -> bool:
+        print("\n--- FASE 1: O ARQUITETO DE TRAMAS ---")
         
-        # 1. ARBITER (Verifica regras e testes)
-        print("[1/5] Consultando Arbiter...")
-        rule_verdict = self.arbiter.judge_action(user_input, self.game_state)
-        rule_triggered = rule_verdict.get('trigger', 'NULL')
-        print(f"      > Regra: {rule_triggered} | Condição: {rule_verdict.get('condition')}")
-
-        # 2. ANPA (Resolve a ação e atualiza mecânicas)
-        print("[3/5] ANPA: Resolvendo Ação...")
-        anpa_outcome = self.anpa.resolve_turn(user_input, rule_verdict, self.game_state)
+        # A. Preparar Dados
+        tables = self.game_state['world_data'].get('tables', {})
+        genre = self.game_state['world_data'].get('name', 'Cenário Genérico')
         
-        # 3. APLICA ATUALIZAÇÕES (Inventário, Relógios, Transições)
-        # O ANPA retorna 'system_dict' já limpo pelo anpa_engine.py
-        system_updates = anpa_outcome.get('system_dict', {})
-        self._apply_system_updates(system_updates)
-
-        # 4. ENS (Gera a narração final)
-        print("[4/5] Gerando Narração Final...")
-        narration = self.narrator.narrate(
-            anpa_outcome.get('narrator', ''), # Texto base da IA
-            self.game_state
-        )
-
-        # 5. ATUALIZA HISTÓRICO E TURNO
-        self.game_state['meta']['turn_count'] += 1
+        places_raw = tables.get('scenes', {}).get('places', [])
+        if not places_raw: places_raw = tables.get('places', ["Local Genérico"])
         
-        # Salva no histórico (Temp)
-        if 'history' not in self.game_state['state']: self.game_state['state']['history'] = []
-        self.game_state['state']['history'].append({
-            "role": "user", "content": user_input
-        })
-        self.game_state['state']['history'].append({
-            "role": "assistant", "content": narration
-        })
+        plot_table = tables.get('plot', {})
+        seeds = {
+            "col1_event": random.choice(plot_table.get('col1_event', ['E1'])),
+            "col2_goal": random.choice(plot_table.get('col2_goal', ['E2'])),
+            "col3_consequence": random.choice(plot_table.get('col3_consequence', ['E3']))
+        }
+        print(f"[RNG] Sementes: {seeds['col1_event']}...")
 
-        # 6. GERA PREVISÃO PARA O PRÓXIMO TURNO
-        self._ensure_prediction_ready()
-
-        # 7. AUTO-SAVE
-        self.save_game()
-
-        return narration
-
-    def _apply_system_updates(self, sistema_data: dict):
-        """Aplica mudanças de estado vindas da IA (Inventário, Relógios, Transições)."""
-        if not sistema_data: return
+        # B. TRAMA (IA)
+        print("[IA] Gerando Trama...")
+        resp_trama = self.trama_module.gerar_trama(seeds, genre, places_raw)
         
-        print(f"\n[SISTEMA] Processando atualizações...")
-        state = self.game_state['state']
-        front = state.get('campaign_front', {})
-        
-        # --- CORREÇÃO DE INVENTÁRIO (BLINDAGEM CONTRA VAZIOS) ---
-        if 'inventory_updates' in sistema_data:
-            updates = sistema_data['inventory_updates']
-            # Garante que é lista (caso o ANPA não tenha convertido)
-            if isinstance(updates, dict): updates = [updates]
-            if isinstance(updates, list):
-                for update in updates:
-                    item_name = update.get('item')
-                    
-                    # FILTRO: Ignora itens sem nome ou vazios
-                    if not item_name or str(item_name).strip() == "":
-                        continue
-
-                    # Normaliza quantidade (qty vs quantity)
-                    qty_change = int(update.get('qty', update.get('quantity', 0)))
-                    if qty_change == 0: qty_change = 1 # Fallback
-
-                    inventory = state['character'].get('inventory', [])
-                    
-                    # Verifica se item já existe
-                    existing = next((i for i in inventory if i['item'] == item_name), None)
-                    
-                    if existing:
-                        existing['qty'] = int(existing.get('qty', 1)) + qty_change
-                        if existing['qty'] <= 0: inventory.remove(existing)
-                    elif qty_change > 0:
-                        inventory.append({"item": item_name, "qty": qty_change, "type": update.get('type', 'item')})
-                    
-                    state['character']['inventory'] = inventory
-                    print(f"      > Item '{item_name}': {qty_change:+d}")
-
-        # --- CORREÇÃO DOS RELÓGIOS (LOCALIZAÇÃO HÍBRIDA) ---
-        def get_clock(clock_name):
-            """Busca relógio na raiz ou aninhado em current_clocks"""
-            if not front: return {}
-            # 1. Tenta na raiz (Parser Achatado)
-            if isinstance(front.get(clock_name), dict):
-                return front[clock_name]
-            # 2. Tenta dentro de current_clocks (Estrutura Aninhada)
-            elif isinstance(front.get('current_clocks'), dict):
-                return front['current_clocks'].get(clock_name, {})
-            return {}
-
-        trigger = sistema_data.get('event_trigger')
-        
-        # Lógica de Relógios
-        if trigger == 'RESOLUTION_PROGRESS':
-            clock = get_clock('resolution_clock')
-            if clock:
-                curr = int(clock.get('current_segments', 0))
-                maxim = int(clock.get('max_segments', 4))
-                clock['current_segments'] = min(curr + 1, maxim)
-                print(f"      > [RELÓGIO] Resolução: {clock['current_segments']}/{maxim}")
-                
-                if clock['current_segments'] >= maxim:
-                    self._trigger_scene_transition("ARC_CLIMAX_READY")
-
-        elif trigger == 'THREAT_PROGRESS':
-            clock = get_clock('threat_clock')
-            if clock:
-                curr = int(clock.get('current_segments', 0))
-                maxim = int(clock.get('max_segments', 6))
-                clock['current_segments'] = min(curr + 1, maxim)
-                print(f"      > [RELÓGIO] Ameaça: {clock['current_segments']}/{maxim}")
-                
-                if clock['current_segments'] >= maxim:
-                    self._trigger_scene_transition("ARC_FAILURE_IMMINENT")
-
-        # Transições de Cena
-        elif trigger in ['SCENE_COMPLETE', 'SCENE_COMPLETE_GENERIC']:
-            self._trigger_scene_transition(trigger)
+        if 'error' in resp_trama:
+            print(f"[ERRO] Trama: {resp_trama['error']}")
+            return False
             
-        elif trigger == 'ORACLE_CONSULT':
-            print(f"      > [ORÁCULO]: {sistema_data.get('oracle_params')}")
-
-    def _trigger_scene_transition(self, transition_type: str):
-        """Gera uma nova cena e atualiza o contexto."""
-        print(f"      > [EVENTO]: Transição de cena ({transition_type})...")
+        self.game_state['current_plot'] = {
+            "seeds": seeds,
+            **resp_trama['content'] # title, evident_premise, hidden_premise, etc.
+        }
         
-        # Chama o Gerador de Cenas
-        new_scene = self.scene_gen.generate_new_scene(self.game_state)
+        print("\n--- FASE 2: A FRENTE DE AVENTURA ---")
+        # C. FRENTE (IA)
+        print("[IA] Definindo Vilão e Presságios...")
+        resp_frente = self.frente_module.gerar_frente(self.game_state['current_plot'], genre)
         
-        if new_scene:
-            self.game_state['state']['current_scene_context'] = new_scene
-            # Reseta árvore de previsão ao mudar de cena
-            self.game_state['state']['prediction_tree'] = {} 
-            
-            # Log bonito no console
-            print(f"\n=== NOVA CENA: {new_scene.get('location_name')} ===")
-            print(f"Objetivo: {new_scene.get('scene_objective')}")
-            print("=========================================\n")
-            
-            # (Opcional) Forçar uma narração de entrada de cena aqui se desejar
-        else:
-            print("[ERRO] Falha ao gerar nova cena.")
+        if 'error' in resp_frente:
+            print(f"[ERRO] Frente: {resp_frente['error']}")
+            return False
 
-    def _ensure_prediction_ready(self):
-        """Garante que existem sugestões de ação para o jogador."""
-        try:
-            tree = self.anpa.generate_prediction_tree(self.game_state)
-            if tree:
-                self.game_state['state']['prediction_tree'] = tree
-        except Exception as e:
-            print(f"[AVISO] Não foi possível gerar previsões: {e}")
+        frente_data = resp_frente['content']
+        
+        # Inicializa o estado dinâmico dos relógios
+        clocks_config = frente_data['clocks']
+        
+        self.game_state['adventure_front'] = {
+            "danger": frente_data['danger'],
+            "doom": frente_data['doom'],
+            "grim_portents": frente_data['grim_portents'],
+            "active_clocks": {
+                "threat": {
+                    "name": clocks_config['threat_clock_name'],
+                    "current": 0,
+                    "max": clocks_config['threat_clock_max']
+                },
+                "resolution": {
+                    "name": clocks_config['resolution_clock_name'],
+                    "current": 0,
+                    "max": clocks_config['resolution_clock_max']
+                }
+            }
+        }
+        
+        return True
+
+    def _display_adventure_status(self):
+        """Mostra resumo da aventura criada."""
+        plot = self.game_state['current_plot']
+        front = self.game_state['adventure_front']
+        
+        print("\n" + "="*50)
+        print(f"AVENTURA: {plot['title']}")
+        print(f"MISSÃO: {plot['evident_premise']}")
+        print("-" * 50)
+        print(f"AMEAÇA OCULTA: {front['danger']['name']}")
+        print(f"RELÓGIO RUIM: {front['active_clocks']['threat']['name']} [0/{front['active_clocks']['threat']['max']}]")
+        print(f"RELÓGIO BOM:  {front['active_clocks']['resolution']['name']} [0/{front['active_clocks']['resolution']['max']}]")
+        print("="*50 + "\n")
 
     def save_game(self):
-        """Salva o estado no disco."""
-        with open(self.save_path, 'w', encoding='utf-8') as f:
-            json.dump(self.game_state, f, indent=2, ensure_ascii=False)
+        filename = f"save_{int(time.time())}.json"
+        self.file_manager.save_game(self.game_state, filename)
 
-    def get_recent_history_text(self):
-        """Retorna o texto introdutório ao carregar o jogo."""
-        scene = self.game_state['state'].get('current_scene_context', {})
-        front = self.game_state['state'].get('campaign_front', {})
-        danger = front.get('danger', 'Desconhecido') if front else 'Nenhum'
-        
-        return (
-            f"[INTRO]: Retornando à aventura...\n"
-            f"[SISTEMA]: Ameaça Atual: {danger}\n\n"
-            f"        --- LOCAL ATUAL ---\n"
-            f"        LOCAL: {scene.get('location_name', 'Desconhecido')}\n"
-            f"        OBJETIVO: {scene.get('scene_objective', 'Sobreviver')}\n"
-            f"        "
-        )
+    def load_game(self, filename: str):
+        self.game_state = self.file_manager.load_game(filename)
+        if self.game_state:
+            print(f"[SISTEMA] Jogo '{filename}' carregado.")
+            self._display_adventure_status()
