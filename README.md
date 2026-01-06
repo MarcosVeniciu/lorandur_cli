@@ -12,27 +12,38 @@ lorandur_cli/
 ├── game_controller.py         # O cérebro do sistema (Orquestrador)
 ├── model_llm.py               # Cliente da API LLM (OpenRouter/Gemini)
 ├── secrets.json               # Chaves de API e Configurações
-├── test_llm.py                # Script de diagnóstico de conexão
-├── ver_arvore.py              # Utilitário de visualização de arquivos
 ├── utils/                     # Ferramentas de suporte
 │   ├── debug_logger.py        # Logger para depuração em Markdown
 │   ├── file_manager.py        # Gerenciamento de I/O e Saves
 │   └── xml_parser.py          # Extrator e limpador de tags XML
 ├── modules/                   # Agentes de Execução (Lógica do RPG)
-│   ├── anpa_engine.py         # Motor de Ação e Física (ANPA)
-│   ├── ens_narrator.py        # Sistema de Narração Elástica (ENS)
-│   ├── pipeline_engine.py     # Executor de Pipelines (Setup/Crafting)
-│   ├── rule_arbiter.py        # Árbitro de Regras e Julgamento
-│   ├── scene_generator.py     # Orquestrador de Geração de Cenas
-│   ├── macro_director.py      # Gerador de Ambiente Macro (Nível 1)
-│   ├── micro_planner.py       # Planejador de Micro Local (Nível 2)
-│   └── tactical_generator.py  # Gerador Tático e Mecânico (Nível 3)
+│   ├── trama.py               # Módulo Criador de Trama (Cria_trama.md)
+│   ├── frente_aventura.py     # Módulo Frente de Aventura (Frete de Aventura.md)
+│   ├── macro_cena.py          # Gerador de Ambiente Macro (Nível 1) (Cenas.md)
+│   ├── micro_cena.py          # Planejador de Micro Local (Nível 2) (Cenas.md)
+│   ├── briefing_tactical.py   # Gerador Briefing Tático de cena (Nível 3) (Briefing Tático de cena.md e Cenas.md)
+│   ├── anpa_engine.py         # Módulo ANPA (Arquitetura de Narrativa Preditiva) (Documentação de Design Arquitetura de Narrativa Preditiva em Árvore (ANPA).md)
+│   ├── ens_narrator.py        # Módulo ENS (Engine de Narrativa Silenciosa) (Engine de Narrativa Silenciosa (ENS) 2.1.md)
+│   └── rule_arbiter.py        # Módulo Verificador de Regras (Middleware) ( Prompt Verificador de Regras .md)
+│
 ├── data/                      # Dados do Sistema
 │   └── core_rules.json        # Regras Core do Lorandur
 ├── scenarios/                 # Pacotes de Conteúdo (Settings)
 │   ├── dieselpunk.json        # Cenário Dieselpunk
 │   └── prehistoria.json       # Cenário Pré-História
-├── saves/                     # Arquivos de Save Game (.json)
+├── saves/   
+├── teste/ 
+│   ├── test_utils.py              # Script responsavel por gerar os relatorios_teste
+│   ├── test_llm.py                # Script de diagnóstico de conexão
+│   ├── test_trama.py              # Script de teste de geração de tramas
+│   ├── test_frente_aventura.py    # Script de teste de geração de frente de aventura
+│   ├── test_macro_cena.py         # Script de teste de geração de macro cenas
+│   ├── test_micro_cena.py         # Script de teste de geração de micro cenas
+│   ├── test_briefing_tactical.py  # Script de teste de geração de briefing tatico
+│   ├── test_anpa_engine.py        # Script de teste de geração de arvore de narração
+│   ├── test_ens_narrator.py       # Script de teste de geração de narrador
+│   ├── test_rule_arbiter.py       # Script de teste de geração de verificação de regras
+│   └── relatorios_teste/          # diretorio com o markdown de cada teste
 └── Logger/                    # Logs de execução
     └── game_logger/           # Histórico de partidas em Markdown
 ```

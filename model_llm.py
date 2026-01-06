@@ -2,7 +2,12 @@ import os
 import json
 import requests
 import sys
-
+import time
+'''
+    Quero mudar que ao inves do self.preset_name = "@preset/lorandur-cli" ser predefinido aqui,
+    ele seja passado como parametro opcional na funcao send_prompt.
+    Assim, diferentes presets podem ser usados em chamadas diferentes.
+'''
 # Garante que scripts na raiz ou subpastas encontrem o arquivo
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SECRETS_FILE = os.path.join(BASE_DIR, "secrets.json")
@@ -12,19 +17,20 @@ class LLMClient:
         self.api_key = None
         self.site_url = ""
         self.site_name = ""
-        self.model_name = "google/gemini-2.0-flash-lite-001" # Modelo escolhido
+        
+        # Modelo preferencial para Structured Outputs
+        self.default_model = "google/gemini-2.0-flash-lite-001"
+        self.preset_name = "@preset/lorandur-cli"
         
         self._load_secrets()
 
         if not self.api_key:
             print("[LLM] AVISO CRÍTICO: 'OPENROUTER_API_KEY' não encontrada em secrets.json!")
-        else:
-            print(f"[LLM] Cliente OpenRouter inicializado (Modelo: {self.model_name})")
 
     def _load_secrets(self):
         try:
             if os.path.exists(SECRETS_FILE):
-                with open(SECRETS_FILE, "r") as f:
+                with open(SECRETS_FILE, "r", encoding='utf-8') as f:
                     data = json.load(f)
                     self.api_key = data.get("OPENROUTER_API_KEY")
                     self.site_url = data.get("SITE_URL", "http://localhost")
@@ -34,76 +40,89 @@ class LLMClient:
         except Exception as e:
             print(f"[LLM] Erro ao ler secrets.json: {e}")
 
-    def send_prompt(self, messages, temperature=0.7):
+    def send_prompt(self, 
+                    messages: list, 
+                    json_schema: dict = None,
+                    temperature: float = 0.7) -> dict:
         """
-        Envia o prompt para o OpenRouter via requisição HTTP POST.
-        Suporta string única ou lista de mensagens.
+        Envia prompt para o OpenRouter.
+        Aceita lista de mensagens [{'role': 'user', 'content': '...'}].
+        Se json_schema for fornecido, força Structured Output e validação.
         """
         if not self.api_key:
-            print("[LLM] Erro: API Key não configurada.")
-            return "<erro>Sem API Key</erro>"
+            return {"error": "Sem API Key"}
 
-        # 1. Preparar Mensagens no formato OpenAI/OpenRouter
-        formatted_messages = []
-        
-        if isinstance(messages, str):
-            # Se for string crua, envelopa como user message
-            formatted_messages.append({"role": "user", "content": messages})
-        elif isinstance(messages, list):
-            # Se já for lista de dicts (chat history), usa direto
-            # Se for lista de strings ou formato antigo, converte
-            for msg in messages:
-                if isinstance(msg, dict):
-                    formatted_messages.append(msg)
-                else:
-                    formatted_messages.append({"role": "user", "content": str(msg)})
-
-        # 2. Configurar Headers e Payload
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": self.site_url, # Necessário para rankings do OpenRouter
+            "HTTP-Referer": self.site_url,
             "X-Title": self.site_name,
         }
 
         payload = {
-            "model": self.model_name,
-            "messages": formatted_messages,
+            "model": self.default_model, 
+            "messages": messages,
             "temperature": temperature,
-            # "max_tokens": 1024, # Opcional, Gemini tem contexto grande
-            # "top_p": 1,
-            # "repetition_penalty": 1,
+            "plugins": []
         }
 
-        # 3. Enviar Requisição
+        # Configuração de Saída Estruturada
+        if json_schema:
+            payload["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "lorandur_response",
+                    "strict": True,
+                    "schema": json_schema
+                }
+            }
+            # O plugin response-healing ajuda a corrigir JSONs quase válidos
+            payload["plugins"].append({"id": "response-healing"})
+
         try:
+            start_time = time.time()
             response = requests.post(
                 "https://openrouter.ai/api/v1/chat/completions",
                 headers=headers,
                 data=json.dumps(payload),
-                timeout=30 # Timeout para evitar travamento eterno
+                timeout=60
             )
+            latency = time.time() - start_time
 
-            # 4. Tratar Resposta
             if response.status_code == 200:
                 data = response.json()
-                # O OpenRouter retorna no formato OpenAI padrão
                 try:
-                    content = data['choices'][0]['message']['content']
-                    return content
-                except (KeyError, IndexError):
-                    print(f"[LLM] Resposta inesperada: {data}")
-                    return "<erro>Formato de resposta inválido</erro>"
+                    choice = data['choices'][0]
+                    raw_content = choice['message']['content']
+                    finish_reason = choice.get('finish_reason', 'unknown')
+                    usage = data.get('usage', {})
+                    
+                    # Se pediu JSON, tenta parsear imediatamente
+                    parsed_content = raw_content
+                    if json_schema:
+                        try:
+                            parsed_content = json.loads(raw_content)
+                        except json.JSONDecodeError:
+                            print(f"[LLM] Erro de Parse JSON. Raw: {raw_content[:50]}...")
+                            return {"error": "Falha no Parse JSON", "raw": raw_content}
+
+                    return {
+                        "content": parsed_content,
+                        "usage": usage,
+                        "latency": latency,
+                        "finish_reason": finish_reason
+                    }
+                    
+                except (KeyError, IndexError, TypeError) as e:
+                    print(f"[LLM] Erro ao extrair resposta: {e}")
+                    return {"error": "Formato de resposta inválido", "details": str(data)}
             else:
                 print(f"[LLM] Erro API ({response.status_code}): {response.text}")
-                return f"<erro>API Error {response.status_code}</erro>"
+                return {"error": f"API Error {response.status_code}", "details": response.text}
 
-        except requests.exceptions.RequestException as e:
-            print(f"[LLM] Erro de Conexão: {e}")
-            return "<erro>Falha na Conexão</erro>"
         except Exception as e:
-            print(f"[LLM] Erro Genérico: {e}")
-            return "<erro>Erro Interno</erro>"
+            print(f"[LLM] Exceção de Conexão: {e}")
+            return {"error": str(e)}
 
 # Instância global
 llm_client = LLMClient()
