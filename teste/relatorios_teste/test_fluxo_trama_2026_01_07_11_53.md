@@ -1,10 +1,10 @@
 # Relatório de Teste: Fluxo de Trama V5
-**Data:** 2026_01_06_17_30
+**Data:** 2026_01_07_11_53
 
 ## 📊 Métricas de Execução
 | Métrica | Valor |
 | :--- | :--- |
-| **Tempo Total** | 11.25s |
+| **Tempo Total** | 13.61s |
 | **Tokens Entrada** | 841 |
 | **Tokens Saída** | 3135 |
 | **Tokens Total** | 3976 |
@@ -68,6 +68,153 @@ Gere a resposta EXCLUSIVAMENTE em formato JSON seguindo o schema estrito.
 - Nível 3 (Escopo Regional - A Estrada): A trama é uma jornada. O foco é a travessia de A para B, gestão de combustível, perseguições e encontros na estrada.
 
 Crie a estrutura V3.0 agora.
+```
+
+### Output Schema (Enviado)
+Este é o schema estrito que o modelo deve seguir:
+```json
+{
+  "type": "object",
+  "properties": {
+    "configuracao_aventura": {
+      "type": "object",
+      "properties": {
+        "genero_principal": {
+          "type": "string"
+        },
+        "subgeneros_selecionados": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "escopo_selecionado": {
+          "type": "string"
+        },
+        "justificativa_estilo": {
+          "type": "string"
+        },
+        "justificativa_escopo": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "genero_principal",
+        "subgeneros_selecionados",
+        "escopo_selecionado"
+      ]
+    },
+    "argumento": {
+      "type": "object",
+      "properties": {
+        "texto": {
+          "type": "string",
+          "description": "Resumo completo da verdade do mestre (Quem, Onde, Quando, Por que)."
+        },
+        "justificativa": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "texto"
+      ]
+    },
+    "premissas": {
+      "type": "object",
+      "properties": {
+        "evidente": {
+          "type": "object",
+          "properties": {
+            "texto": {
+              "type": "string"
+            },
+            "funcao": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "texto"
+          ]
+        },
+        "oculta": {
+          "type": "object",
+          "properties": {
+            "texto": {
+              "type": "string"
+            },
+            "funcao": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "texto"
+          ]
+        },
+        "justificativa": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidente",
+        "oculta"
+      ]
+    },
+    "matriz_controle_informacao": {
+      "type": "object",
+      "properties": {
+        "itens": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "titulo": {
+                "type": "string"
+              },
+              "a_verdade": {
+                "type": "string"
+              },
+              "a_expectativa": {
+                "type": "string"
+              },
+              "a_camuflagem": {
+                "type": "string"
+              },
+              "o_gatilho": {
+                "type": "string"
+              },
+              "a_revelacao": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "titulo",
+              "a_verdade",
+              "a_expectativa",
+              "a_camuflagem",
+              "o_gatilho",
+              "a_revelacao"
+            ]
+          }
+        },
+        "justificativa": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "itens"
+      ]
+    }
+  },
+  "required": [
+    "configuracao_aventura",
+    "argumento",
+    "premissas",
+    "matriz_controle_informacao"
+  ]
+}
 ```
 
 ## 2. Resposta Recebida (Output JSON)

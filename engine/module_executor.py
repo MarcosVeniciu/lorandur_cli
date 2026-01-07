@@ -53,19 +53,6 @@ class ModuleExecutor:
         try:
             print(f"[Executor] Enviando para LLM (Preset: {preset})...")
             
-            # Chama o método que retorna (content_json, metadata) ou o dicionário unificado
-            # O model_llm.generate_structured retorna apenas o dict parseado por padrão no código anterior.
-            # Vamos precisar ajustar ou interceptar aqui. 
-            # O ideal é que o model_llm retorne tudo.
-            # Como não podemos mudar a assinatura de retorno do generate_structured sem quebrar o contrato simples,
-            # vamos acessar os metadados internamente se possível ou assumir que o model_llm guardou o last_usage.
-            
-            # Melhor abordagem: O model_llm retorna um dict com metadados SE pedirmos? 
-            # Não, o código atual do model_llm.generate_structured retorna apenas parsed_json.
-            
-            # HACK SEGURO: Vamos chamar generate() diretamente aqui para ter controle total dos metadados,
-            # e fazer o parse manual do JSON, já que temos o schema.
-            
             response_format = {
                 "type": "json_schema",
                 "json_schema": {
@@ -87,14 +74,15 @@ class ModuleExecutor:
             usage = raw_response.get("usage", {})
             finish_reason = raw_response.get("finish_reason")
             
-            # Guarda Debug COMPLETO antes de falhar o parse
+            # Guarda Debug COMPLETO (Agora incluindo o Schema)
             self.last_prompt_debug = {
                 "module_id": module_id,
                 "system": system_prompt,
                 "user": user_prompt,
                 "usage": usage,
                 "finish_reason": finish_reason,
-                "raw_content": content_str
+                "raw_content": content_str,
+                "schema": schema  # <--- ADICIONADO AQUI
             }
 
             try:

@@ -12,9 +12,6 @@ from engine.sync_manager import SyncManager
 def calculate_cost(usage_dict):
     """
     Calcula custo estimado para Gemini 2.0 Flash (Preview/Free por enquanto).
-    Usando tabela hipotética barata para referência:
-    Input: $0.10 / 1M tokens
-    Output: $0.40 / 1M tokens
     """
     if not usage_dict:
         return 0.0
@@ -58,6 +55,7 @@ def testar_geracao_trama():
     usage = debug_data.get('usage', {})
     cost = calculate_cost(usage)
     finish_reason = debug_data.get('finish_reason', 'Unknown')
+    schema_sent = debug_data.get('schema', {}) # Pega o schema do debug
 
     timestamp = time.strftime("%Y_%m_%d_%H_%M")
     report_file = os.path.join(base_path, "teste", "relatorios_teste", f"test_fluxo_trama_{timestamp}.md")
@@ -86,6 +84,13 @@ def testar_geracao_trama():
         
         f.write("### User Prompt\n")
         f.write(f"```text\n{debug_data.get('user', 'N/A')}\n```\n\n")
+        
+        # --- NOVO BLOCO: SCHEMA JSON ---
+        if schema_sent:
+            f.write("### Output Schema (Enviado)\n")
+            f.write("Este é o schema estrito que o modelo deve seguir:\n")
+            f.write(f"```json\n{json.dumps(schema_sent, indent=2, ensure_ascii=False)}\n```\n\n")
+        # -------------------------------
 
         if trama_result:
             f.write("## 2. Resposta Recebida (Output JSON)\n")

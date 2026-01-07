@@ -1,76 +1,182 @@
-# Relatório de Teste: Fluxo de Trama V5
-**Data:** 2026_01_06_17_07
+# Log de Sessão: dieselpunk
+**Data:** 2026-01-07
+**Inicio:** 11:34:16
 
-## 📊 Métricas de Execução
-| Métrica | Valor |
-| :--- | :--- |
-| **Tempo Total** | 12.97s |
-| **Tokens Entrada** | 841 |
-| **Tokens Saída** | 3135 |
-| **Tokens Total** | 3976 |
-| **Custo Estimado** | $0.001338 |
-| **Stop Reason** | stop |
+---
 
-**Módulo:** core_trama_generator
+## [11:34:16] NEW_GAME
+**Status:** Estado Inicializado
 
-## 1. Contexto Enviado
-### System Prompt
-```text
-Você é um Mestre de RPG especialista e Designer Narrativo focado no sistema 'Dominus' e na metodologia de construção de aventuras do canal 'Narradores Narrados'.
-
-# Objetivo
-Sua tarefa é criar uma estrutura de aventura completa e coesa a partir de sementes aleatórias, definindo o tom, o escopo e a gestão de mistérios.
-
-# Instruções de Processamento
-
-1. **Análise de Estilo (Geração de Subgêneros):**
-   - O Gênero Principal é fixo pelo Cenário (Dieselpunk).
-   - Analise a combinação da Trama sorteada ({'col1_event': 'Uma carga valiosa foi roubada', 'col2_goal': 'Recuperar a carga antes do amanhecer', 'col3_consequence': 'Guerra entre gangues rivais'}). Que tipo de história isso sugere? (Ex: Drama, Comédia, Terror, Noir, Ação Frenética).
-   - Selecione 2 ou 3 **Subgêneros (Tags)** que darão personalidade única a essa aventura específica.
-
-2. **Seleção de Escopo:**
-   - Analise a lista de 'Níveis de Escopo Suportados' fornecida.
-   - Escolha UM dos níveis que melhor sirva aos Subgêneros escolhidos e à Trama gerada.
-
-3. **Construção Narrativa (Argumento e Premissas):**
-   - **Crie o Argumento:** É o resumo da 'Verdade do Mestre'. Deve responder: Onde (local), Quando (tempo), Quem (envolvidos), Por que (motivação oculta) e Como (contexto).
-   - **Defina as Premissas:**
-     - *Premissa Evidente (O Briefing):* A 'falsa verdade' ou missão superficial entregue aos jogadores no início.
-     - *Premissa Oculta (O Twist):* Os segredos do Argumento. A revelação que subverte a missão.
-
-4. **Gestão da Informação (A Matriz):**
-   - Crie uma 'Matriz de Controle de Informação' com 3 itens principais para gerenciar a Quebra de Expectativa.
-   - Para cada item defina:
-     - **Título:** Nome do mistério.
-     - **A Verdade:** O fato real (Oculto).
-     - **A Expectativa:** O clichê ou suposição que os jogadores terão inicialmente.
-     - **A Camuflagem:** Como essa verdade está escondida na cena.
-     - **O Gatilho:** O que precisa acontecer para a revelação (ex: investigar o corpo, hackear o terminal).
-     - **A Revelação:** O que é entregue aos jogadores quando o gatilho é ativado.
-
-# Formato de Saída
-Gere a resposta EXCLUSIVAMENTE em formato JSON seguindo o schema estrito.
+```json
+{
+  "meta": {
+    "created_at": 1767796456.7018569,
+    "scenario_name": "dieselpunk",
+    "turn": 0
+  },
+  "system": {
+    "last_roll": 0,
+    "difficulty_mod": 0,
+    "flags": {}
+  },
+  "context": {
+    "genre": "Dieselpunk",
+    "tone": "High Octane Action & Survival",
+    "seeds": {
+      "col1_event": "Uma carga valiosa foi roubada",
+      "col2_goal": "Recuperar a carga antes do amanhecer",
+      "col3_consequence": "Guerra entre gangues rivais"
+    },
+    "available_locations_str": "A Cidadela de Ferro, O Deserto de Sal, A Rodovia Infinita, O Oásis Tóxico, As Ruínas da Velha Capital",
+    "supported_scopes_str": "- Nível 2 (Escopo Local - O Refúgio): A trama ocorre em um assentamento isolado ou base, focando em disputas de poder, defesa de perímetro ou intriga social.\n- Nível 3 (Escopo Regional - A Estrada): A trama é uma jornada. O foco é a travessia de A para B, gestão de combustível, perseguições e encontros na estrada."
+  },
+  "adventure": {
+    "trama": null,
+    "front": null,
+    "scenes": []
+  },
+  "character": {}
+}
 ```
 
-### User Prompt
-```text
-# DADOS DE ENTRADA (Injeção de Contexto)
+---
+## [11:34:20] TRAMA_GENERATED
+**Status:** Sucesso
 
-1. **Cenário (Gênero Principal):** Dieselpunk
-
-2. **Rolagem de Trama (Dominus):**
-   - *Algo Aconteceu:* Uma carga valiosa foi roubada
-   - *Você Precisa:* Recuperar a carga antes do amanhecer
-   - *Senão:* Guerra entre gangues rivais
-
-3. **Níveis de Escopo Suportados:**
-- Nível 2 (Escopo Local - O Refúgio): A trama ocorre em um assentamento isolado ou base, focando em disputas de poder, defesa de perímetro ou intriga social.
-- Nível 3 (Escopo Regional - A Estrada): A trama é uma jornada. O foco é a travessia de A para B, gestão de combustível, perseguições e encontros na estrada.
-
-Crie a estrutura V3.0 agora.
+```json
+{
+  "subgenres": [
+    "Noir",
+    "Ação Frenética",
+    "Mistério"
+  ],
+  "scope": "Nível 3 (Escopo Regional - A Estrada)",
+  "plot": {
+    "local": "A estrada de ferro que conecta o porto industrial de Gearford à cidade de Ironhaven, atravessando os campos de vapor e as fábricas abandonadas.",
+    "tempo": "Noite, com a aurora ainda distante; a missão deve ser concluída antes do amanhecer.",
+    "envolvidos": "Os jogadores são contratados por um magnata de tecnologia, os gangues rivais (The Ironclad e The Smokers), e o capitão da guarda local.",
+    "motivação_oculta": "O líder da Ironclad está buscando controlar a cidade usando a carga como moeda de troca.",
+    "contexto": "A carga, um protótipo de máquina de vapor avançada, foi roubada de um depósito secreto. Se não for recuperada, as gangues entrarão em guerra, colocando toda a região em risco."
+  },
+  "premises": {
+    "evident": "Recuperar a carga roubada antes do amanhecer para evitar a guerra entre as gangues.",
+    "hidden": "A carga é um dispositivo experimental que pode ser usado para desestabilizar a cidade, e o magnata que os contratou tem planos próprios de usar a situação para ascender ao poder."
+  },
+  "information_matrix": [
+    {
+      "title": "O Vazio da Carga",
+      "a_verdade": "A carga não é um simples carregamento, mas um dispositivo experimental de vapor altamente volátil.",
+      "a_expectativa": "Os jogadores acreditam que a carga é apenas um valioso suprimento de metal.",
+      "a_camuflagem": "A carga está envolta em caçap simples, sem rótulos ou marcas de segurança.",
+      "o_gatilho": "Inspecionar a carga após a recuperação.",
+      "a_revelacao": "A carga emite um som baixo e vibração, revelando sua natureza energética."
+    },
+    {
+      "title": "A Aliança Secreta",
+      "a_verdade": "As duas gangues rivais estão secretamente colaborando para controlar o conflito.",
+      "a_expectativa": "Os jogadores veem as gangues como adversárias inevitáveis.",
+      "a_camuflagem": "Acordos são trocados em códigos de fumaça e em um abrigo compartilhado.",
+      "o_gatilho": "Interceptar uma transmissão de rádio entre os líderes das gangues.",
+      "a_revelacao": "A transmissão contém a mensagem de colaboração e plano de divisão de poder."
+    },
+    {
+      "title": "O Motivo Oculto",
+      "a_verdade": "O prefeito da cidade, que aparece como um filantropo, está orquestrando o roubo para substituir o regime atual.",
+      "a_expectativa": "Os jogadores consideram o prefeito uma figura neutra.",
+      "a_camuflagem": "O prefeito mantém um ar de benevolência e esconde sua agenda em documentos públicos.",
+      "o_gatilho": "Descobrir o diário privado do prefeito na sua residência oficial.",
+      "a_revelacao": "O diário revela ordens para sabotar a segurança da carga e manipular a guerra."
+    }
+  ]
+}
 ```
 
-## 2. Resposta Recebida (Output JSON)
+---
+## [11:50:02] NEW_GAME
+**Status:** Estado Inicializado
+
+```json
+{
+  "meta": {
+    "created_at": 1767797402.249611,
+    "scenario_name": "dieselpunk",
+    "turn": 0
+  },
+  "system": {
+    "last_roll": 0,
+    "difficulty_mod": 0,
+    "flags": {}
+  },
+  "context": {
+    "genre": "Dieselpunk",
+    "tone": "High Octane Action & Survival",
+    "seeds": {
+      "col1_event": "Uma carga valiosa foi roubada",
+      "col2_goal": "Recuperar a carga antes do amanhecer",
+      "col3_consequence": "Guerra entre gangues rivais"
+    },
+    "available_locations_str": "A Cidadela de Ferro, O Deserto de Sal, A Rodovia Infinita, O Oásis Tóxico, As Ruínas da Velha Capital",
+    "supported_scopes_str": "- Nível 2 (Escopo Local - O Refúgio): A trama ocorre em um assentamento isolado ou base, focando em disputas de poder, defesa de perímetro ou intriga social.\n- Nível 3 (Escopo Regional - A Estrada): A trama é uma jornada. O foco é a travessia de A para B, gestão de combustível, perseguições e encontros na estrada."
+  },
+  "adventure": {
+    "trama": null,
+    "front": null,
+    "scenes": []
+  },
+  "character": {}
+}
+```
+
+---
+## [11:50:06] TRAMA_GENERATED
+**Status:** Sucesso
+
+```json
+{
+  "error": "JSON_PARSE_FAILED"
+}
+```
+
+---
+## [11:53:34] NEW_GAME
+**Status:** Estado Inicializado
+
+```json
+{
+  "meta": {
+    "created_at": 1767797614.7116373,
+    "scenario_name": "dieselpunk",
+    "turn": 0
+  },
+  "system": {
+    "last_roll": 0,
+    "difficulty_mod": 0,
+    "flags": {}
+  },
+  "context": {
+    "genre": "Dieselpunk",
+    "tone": "High Octane Action & Survival",
+    "seeds": {
+      "col1_event": "Uma carga valiosa foi roubada",
+      "col2_goal": "Recuperar a carga antes do amanhecer",
+      "col3_consequence": "Guerra entre gangues rivais"
+    },
+    "available_locations_str": "A Cidadela de Ferro, O Deserto de Sal, A Rodovia Infinita, O Oásis Tóxico, As Ruínas da Velha Capital",
+    "supported_scopes_str": "- Nível 2 (Escopo Local - O Refúgio): A trama ocorre em um assentamento isolado ou base, focando em disputas de poder, defesa de perímetro ou intriga social.\n- Nível 3 (Escopo Regional - A Estrada): A trama é uma jornada. O foco é a travessia de A para B, gestão de combustível, perseguições e encontros na estrada."
+  },
+  "adventure": {
+    "trama": null,
+    "front": null,
+    "scenes": []
+  },
+  "character": {}
+}
+```
+
+---
+## [11:53:48] TRAMA_GENERATED
+**Status:** Sucesso
+
 ```json
 {
   "configuracao_aventura": {
@@ -134,11 +240,4 @@ Crie a estrutura V3.0 agora.
 }
 ```
 
-### 3. Análise Rápida (Schema V3.0)
-- **Escopo:** Nível 2 (Escopo Local - O Refúgio)
-- **Subgêneros:** Noir, Ação Frenética, Thriller
-- **Premissa Evidente:** Uma carga de combustível experimental crucial para a infraestrutura da cidade foi roubada. As gangues rivais 'Serpentes de Ferro' e 'Abutres de Cromo' estão à beira de um conflito aberto. Os jogadores são contratados para recuperar a carga antes do nascer do sol, evitando assim uma guerra civil que devastaria Neo-Veridia.
-- **Premissa Oculta:** O roubo foi um trabalho interno orquestrado por uma facção desonesta da Guarda da Cidade. O objetivo não é apenas roubar o 'combustível', mas sim um componente de arma sônica avançada, que eles planejam vender ou usar para impor sua própria ordem após o caos da guerra de gangues fabricada.
-
-#### Matriz de Informação (Item 1):
-- **A Verdadeira Natureza da Carga:** É um combustível experimental de alta octanagem, valioso pela sua potência energética. -> *A carga roubada não é combustível, mas sim o protótipo de um amplificador de arma sônica, capaz de causar destruição em larga escala.*
+---
