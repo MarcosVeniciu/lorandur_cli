@@ -1,0 +1,64 @@
+{
+  "module_id": "step1_front_archetype",
+  "version": "1.0.0",
+  "type": "TYPE_I_PIPELINE",
+  "description": "Passo 1/3: Define o Arquétipo Narrativo e a Meta-Estrutura (Curva Dramática).",
+  "configuration": {
+    "model_preset": "@preset/lorandur-cli",
+    "response_healing": true
+  },
+  "inputs_required": [
+    "genre",
+    "subgenres",
+    "scope",
+    "argumento",
+    "premissas",
+    "matriz"
+  ],
+  "input_mapping": {
+    "genre": "context.genre",
+    "subgenres": "adventure.trama.configuracao_aventura.subgeneros_selecionados",
+    "scope": "context.runtime.full_scope_description",
+    "argumento": "adventure.trama.argumento.texto",
+    "premissas": "adventure.trama.premissas",
+    "matriz": "context.runtime.formatted_matrix"
+  },
+  "prompts": {
+    "system": "Você é um Mestre de RPG especialista e Arquiteto Narrativo.\n\n# Objetivo\nAnalise a Trama gerada e escolha a MELHOR estrutura narrativa (Arquétipo) para conduzir a sessão. Não crie cenas específicas, apenas a espinha dorsal dramática.\n\n# Biblioteca de Arquétipos (Meta-Estruturas)\nUse estas definições:\n\n1. **Superar o Monstro**: Foco em sobrevivência.\n   Fases: [\"Antecipação\", \"Sonho (Preparação)\", \"Frustração (O Monstro)\", \"Pesadelo\", \"Fuga/Vitória\"]\n\n2. **Da Miséria à Riqueza**: Foco em ascensão.\n   Fases: [\"Miséria\", \"Sucesso Inicial\", \"Crise Central\", \"Independência\", \"Completude\"]\n\n3. **A Busca**: Foco em viagem e MacGuffin.\n   Fases: [\"Chamado\", \"Jornada\", \"Chegada/Frustração\", \"Provações\", \"Objetivo\"]\n\n4. **Viagem e Retorno**: Foco em mundo estranho.\n   Fases: [\"Queda\", \"Fascínio\", \"Frustração (Regras)\", \"Pesadelo (Sombra)\", \"Fuga\"]\n\n5. **Renascimento**: Foco em redenção.\n   Fases: [\"Queda\", \"Sonho\", \"Frustração (Prisão)\", \"Pesadelo\", \"Renascimento\"]\n\n6. **Tragédia**: Foco em queda moral.\n   Fases: [\"Tentação\", \"Sonho (Crime)\", \"Frustração (Consequência)\", \"Pesadelo\", \"Destruição\"]\n\n7. **Comédia**: Foco em confusão e verdade.\n   Fases: [\"Confusão\", \"O Nó\", \"Clímax do Caos\", \"Revelação\", \"Festa\"]\n\n# Instruções\n1. Analise o Argumento e Gênero.\n2. Escolha UM arquétipo.\n3. Defina as 5 fases exatas.\n4. Justifique no 'racional_criativo'.",
+    "user": "# DADOS DE ENTRADA\nContexto: {{genre}} / {{subgenres}}\nEscopo: {{scope}}\n\nTrama (Verdade do Mestre):\n{{argumento}}\n\nPremissas Trama:\n- Evidente: {{premissas.evidente.texto}}\n- Oculta: {{premissas.oculta.texto}}\n\nMatriz:\n{{matriz}}\n\nDefina a estrutura."
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "analise_arquetipica": {
+        "type": "object",
+        "properties": {
+          "arquetipo_selecionado": {
+            "type": "string",
+            "enum": ["Superar o Monstro", "Da Miséria à Riqueza", "A Busca", "Viagem e Retorno", "Renascimento", "Tragédia", "Comédia"]
+          },
+          "meta_estrutura_fases": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Lista exata das 5 fases."
+          },
+          "foco_narrativo": {
+            "type": "string",
+            "description": "Tema central ou 'vibe' da sessão."
+          }
+        },
+        "required": ["arquetipo_selecionado", "meta_estrutura_fases", "foco_narrativo"]
+      },
+      "racional_criativo": {
+        "type": "object",
+        "properties": {
+          "motivo_escolha": { "type": "string" },
+          "influencia_subgeneros": { "type": "string" },
+          "guia_desenvolvimento": { "type": "string", "description": "Instruções para o Narrador sobre como distribuir a tensão." }
+        },
+        "required": ["motivo_escolha", "influencia_subgeneros", "guia_desenvolvimento"]
+      }
+    },
+    "required": ["analise_arquetipica", "racional_criativo"]
+  }
+}

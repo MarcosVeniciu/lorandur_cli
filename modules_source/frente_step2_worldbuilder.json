@@ -1,0 +1,113 @@
+{
+  "module_id": "step2_front_worldbuilder",
+  "version": "1.0.0",
+  "type": "TYPE_I_PIPELINE",
+  "description": "Passo 2/3: Cria o Location Pool, Elenco e Perigos baseados no Arquétipo.",
+  "configuration": {
+    "model_preset": "@preset/lorandur-cli",
+    "response_healing": true
+  },
+  "inputs_required": [
+    "genre",
+    "location_types",
+    "archetype_types",
+    "trama_argumento",
+    "step1_racional",
+    "step1_arquetipo"
+  ],
+  "input_mapping": {
+    "genre": "context.genre",
+    "location_types": "context.available_locations_str",
+    "archetype_types": "context.available_archetypes_str",
+    "trama_argumento": "adventure.trama.argumento.texto",
+    "step1_racional": "adventure.front.step1.racional_criativo",
+    "step1_arquetipo": "adventure.front.step1.analise_arquetipica"
+  },
+  "prompts": {
+    "system": "Você é um Designer de Cenários e Roteirista Sênior.\n\n# Objetivo\nPovoar o mundo com locais evocativos, NPCs complexos e ameaças ativas, seguindo a visão do Passo 1.\n\n# Diretrizes\n1. **Locais Sensoriais:** Use a lista base, mas crie nomes únicos. Descreva cheiros, sons e iluminação.\n   - Obrigatório: 1 Inicial, 4 Intermediários, 3 Clímax.\n2. **NPCs Tridimensionais:** Dê a cada NPC uma 'Motivação Conflitante' (o que ele quer vs. o que ele teme/esconde).\n3. **Perigos Ativos:** Cada perigo deve ter um Impulso (verbo de ação) e uma justificativa de existência.\n4. **Desastre:** O Game Over narrativo deve ser detalhado.",
+    "user": "# CONTEXTO\nGênero: {{genre}}\nTipos Locais: {{location_types}}\nArquétipos Personagem: {{archetype_types}}\n\nTrama: {{trama_argumento}}\n\n# ESTRUTURA (DO PASSO 1)\nArquétipo: {{step1_arquetipo.arquetipo_selecionado}}\nFoco: {{step1_arquetipo.foco_narrativo}}\nRacional: {{step1_racional.motivo_escolha}}\nGuia: {{step1_racional.guia_desenvolvimento}}\n\nCrie os assets do mundo."
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "locais_definidos": {
+        "type": "object",
+        "properties": {
+          "inicial": {
+            "type": "array",
+            "maxItems": 1,
+            "items": {
+              "type": "object",
+              "properties": {
+                "tipo_base": { "type": "string" },
+                "nome_proprio": { "type": "string" },
+                "descricao_sensorial": { "type": "string" },
+                "justificativa_escolha": { "type": "string" }
+              },
+              "required": ["tipo_base", "nome_proprio", "descricao_sensorial", "justificativa_escolha"]
+            }
+          },
+          "desenvolvimento": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "type": "object",
+              "properties": { "tipo_base": {"type": "string"}, "nome_proprio": {"type": "string"}, "descricao_sensorial": {"type": "string"}, "justificativa_escolha": {"type": "string"} },
+              "required": ["tipo_base", "nome_proprio", "descricao_sensorial", "justificativa_escolha"]
+            }
+          },
+          "climax": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "properties": { "tipo_base": {"type": "string"}, "nome_proprio": {"type": "string"}, "descricao_sensorial": {"type": "string"}, "justificativa_escolha": {"type": "string"} },
+              "required": ["tipo_base", "nome_proprio", "descricao_sensorial", "justificativa_escolha"]
+            }
+          }
+        },
+        "required": ["inicial", "desenvolvimento", "climax"]
+      },
+      "elenco_npcs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "nome": { "type": "string" },
+            "arquetipo_base": { "type": "string" },
+            "funcao_na_trama": { "type": "string" },
+            "motivacao_primaria": { "type": "string" },
+            "motivacao_conflitante": { "type": "string", "description": "Desejo secreto ou contradição que dá profundidade." }
+          },
+          "required": ["nome", "arquetipo_base", "funcao_na_trama", "motivacao_primaria", "motivacao_conflitante"]
+        }
+      },
+      "perigos_ameacas": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "nome": { "type": "string" },
+            "tipo": { "type": "string" },
+            "impulso": { "type": "string", "description": "O que fará se não for detido." },
+            "descricao_profunda": { "type": "string" },
+            "justificativa_existencia": { "type": "string" }
+          },
+          "required": ["nome", "tipo", "impulso", "descricao_profunda", "justificativa_existencia"]
+        }
+      },
+      "desastre_iminente": {
+        "type": "object",
+        "properties": {
+          "titulo": { "type": "string" },
+          "descricao_cena_final": { "type": "string" },
+          "justificativa_impacto": { "type": "string" }
+        },
+        "required": ["titulo", "descricao_cena_final", "justificativa_impacto"]
+      }
+    },
+    "required": ["locais_definidos", "elenco_npcs", "perigos_ameacas", "desastre_iminente"]
+  }
+}
