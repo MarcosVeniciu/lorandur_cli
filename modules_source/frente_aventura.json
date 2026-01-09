@@ -1,0 +1,102 @@
+{
+  "module_id": "core_front_generator",
+  "version": "3.3.0",
+  "type": "TYPE_I_PIPELINE",
+  "description": "Gera a Frente de Aventura com Schema Achatado (Flattened) para compatibilidade máxima com API.",
+  "configuration": {
+    "model_preset": "@preset/lorandur-cli",
+    "response_healing": true
+  },
+  "inputs_required": [
+    "trama",
+    "genre",
+    "location_types",
+    "archetype_types",
+    "formatted_matrix",
+    "full_scope_description"
+  ],
+  "input_mapping": {
+    "trama": "adventure.trama",
+    "genre": "context.genre",
+    "location_types": "context.available_locations_str",
+    "archetype_types": "context.available_archetypes_str",
+    "formatted_matrix": "context.runtime.formatted_matrix",
+    "full_scope_description": "context.runtime.full_scope_description"
+  },
+  "prompts": {
+    "system": "Você é um Mestre de RPG especialista e Designer Narrativo.\n\n# Objetivo\nSua tarefa é criar uma \"Frente de Aventura\" (nível de sessão/episódio). Transforme a Trama em elementos jogáveis.\n\n# Instruções\n\n1. **Arquétipo de Enredo:** Escolha um (ex: Superar o Monstro, A Busca, Tragédia) e use sua Meta-Estrutura para guiar os presságios.\n\n2. **Locais (Location Pool):**\n   - Crie nomes evocativos para: 1 Local Inicial, 4 Locais de Investigação, 3 Locais de Clímax.\n\n3. **Presságios Terríveis (CRÍTICO):**\n   - Crie EXATAMENTE 5 eventos cronológicos.\n   - **Locais:** Use o Local Inicial para o Presságio 1, Locais de Investigação para 2-4, e Clímax para 5.\n   - **Mistérios:** Conecte cada presságio a um item da Matriz de Informação.\n\n# Formato de Saída (JSON Plano)\nResponda APENAS com um JSON. Não aninhe objetos desnecessariamente. Use as chaves exatas abaixo:\n- `cabecalho_arquetipo`: O arquétipo escolhido.\n- `cabecalho_foco`: Resumo da frente.\n- `locais_iniciais`: Lista [1 string].\n- `locais_investigacao`: Lista [4 strings].\n- `locais_climax`: Lista [3 strings].\n- `elenco_npcs`: Lista de nomes.\n- `perigos`: Lista de objetos {nome, tipo, impulso}.\n- `desastre_tipo`: O tipo do Game Over.\n- `desastre_descricao`: O que acontece se falharem.\n- `pressagios`: Lista de 5 objetos. CADA objeto deve ter os campos planos:\n    - `ordem` (int)\n    - `meta_estrutura` (string)\n    - `local` (string)\n    - `descricao_evento` (string)\n    - `argumento_cena` (string)\n    - `premissa_evidente` (string)\n    - `premissa_oculta` (string)\n    - `pista_tipo` (string)\n    - `pista_conexao` (string)\n- `perguntas_dramatica`: Lista de 3 perguntas.",
+    "user": "# DADOS DE ENTRADA\n\n1. **Configuração:**\n   - Gênero: {{genre}}\n   - Escopo: {{full_scope_description}}\n\n2. **Trama:**\n{{trama.argumento.texto}}\n\n3. **Matriz de Mistérios:**\n{{formatted_matrix}}\n\n4. **Listas Base:**\n   - Personagens: {{archetype_types}}\n   - Locais: {{location_types}}\n\nGere a Frente de Aventura (JSON Plano)."
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "cabecalho_arquetipo": { "type": "string" },
+      "cabecalho_foco": { "type": "string" },
+      "locais_iniciais": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "locais_investigacao": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "locais_climax": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "elenco_npcs": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "perigos": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "nome": { "type": "string" },
+            "tipo": { "type": "string" },
+            "impulso": { "type": "string" }
+          },
+          "required": ["nome", "tipo", "impulso"],
+          "additionalProperties": false
+        }
+      },
+      "desastre_tipo": { "type": "string" },
+      "desastre_descricao": { "type": "string" },
+      "pressagios": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "ordem": { "type": "integer" },
+            "meta_estrutura": { "type": "string" },
+            "local": { "type": "string" },
+            "descricao_evento": { "type": "string" },
+            "argumento_cena": { "type": "string" },
+            "premissa_evidente": { "type": "string" },
+            "premissa_oculta": { "type": "string" },
+            "pista_tipo": { "type": "string" },
+            "pista_conexao": { "type": "string" }
+          },
+          "required": [
+            "ordem", "meta_estrutura", "local", "descricao_evento", 
+            "argumento_cena", "premissa_evidente", "premissa_oculta", 
+            "pista_tipo", "pista_conexao"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "perguntas_dramatica": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "required": [
+      "cabecalho_arquetipo", "cabecalho_foco", "locais_iniciais", 
+      "locais_investigacao", "locais_climax", "elenco_npcs", 
+      "perigos", "desastre_tipo", "desastre_descricao", 
+      "pressagios", "perguntas_dramatica"
+    ],
+    "additionalProperties": false
+  }
+}

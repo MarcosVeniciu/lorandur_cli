@@ -7,15 +7,12 @@ from typing import Dict, Any, List, Optional, Union
 class ModelLLM:
     """
     Cliente para a API OpenRouter.
-    Configurado para usar Presets (@preset/nome) como definição de modelo e parâmetros.
+    Versão com DEBUG VERBOSO para diagnóstico de conexão.
     """
 
     def __init__(self):
         self.api_url = "https://openrouter.ai/api/v1/chat/completions"
         self.headers = self._load_headers()
-        
-        # DEFINIÇÃO PADRÃO: Usa o preset do OpenRouter para o CLI
-        # Isso carrega modelo, temperatura e system prompts base definidos na interface do OpenRouter
         self.default_model = "@preset/lorandur-cli"
 
     def _load_headers(self) -> Dict[str, str]:
@@ -30,7 +27,7 @@ class ModelLLM:
             api_key = os.getenv("OPENROUTER_API_KEY")
 
         if not api_key:
-            raise ValueError("API Key do OpenRouter não encontrada em secrets.json ou variáveis de ambiente.")
+            raise ValueError("API Key do OpenRouter não encontrada.")
 
         return {
             "Authorization": f"Bearer {api_key}",
@@ -46,9 +43,7 @@ class ModelLLM:
         response_schema: Dict[str, Any], 
         model_preset: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Gera uma resposta estruturada (JSON) forçando o schema via response_format.
-        """
+        
         response_format = {
             "type": "json_schema",
             "json_schema": {
@@ -58,7 +53,10 @@ class ModelLLM:
             }
         }
 
-        # Chama o método genérico
+        # Debug: Mostrar que estamos iniciando a chamada estruturada
+        print(f"\n[ModelLLM DEBUG] Iniciando generate_structured...")
+        print(f"[ModelLLM DEBUG] Model Preset: {model_preset or self.default_model}")
+
         raw_response = self.generate(
             system_instruction=system_instruction,
             prompt=user_message,
@@ -66,15 +64,33 @@ class ModelLLM:
             model_preset=model_preset
         )
 
-        content = raw_response.get("content", "{}")
+        if raw_response.get("error"):
+            return {"error": raw_response["error"]}
+
+        content = raw_response.get("content", "")
+        if not content:
+            return {"error": "EMPTY_CONTENT"}
+
+        cleaned_content = self._clean_markdown(content)
         
         try:
-            parsed_json = json.loads(content)
-            return parsed_json
+            return json.loads(cleaned_content)
         except json.JSONDecodeError as e:
-            print(f"[ModelLLM] Erro de Parse JSON: {e}")
-            print(f"[ModelLLM] Conteúdo recebido: {content[:200]}...")
+            print(f"[ModelLLM ERROR] Falha no Parse JSON: {e}")
+            print(f"[ModelLLM DEBUG] Conteúdo recebido para parse:\n{content}")
             return {"error": "JSON_PARSE_FAILED", "raw_content": content}
+
+    def _clean_markdown(self, text: str) -> str:
+        text = text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        elif text.startswith("```"):
+            text = text[3:]
+        
+        if text.endswith("```"):
+            text = text[:-3]
+        
+        return text.strip()
 
     def generate(
         self, 
@@ -82,17 +98,12 @@ class ModelLLM:
         system_instruction: str = None, 
         messages: List[Dict[str, str]] = None,
         model_preset: str = None,
-        temperature: float = 0.7,
-        max_tokens: int = 4000,
         response_format: Dict = None
     ) -> Dict[str, Any]:
         
-        # 1. Construção do Histórico de Mensagens (Roles)
         conversation = []
-        
         if messages:
             conversation = messages
-            # Se houver instrução de sistema explícita, adiciona se não existir
             if system_instruction and not any(m['role'] == 'system' for m in conversation):
                 conversation.insert(0, {"role": "system", "content": system_instruction})
         else:
@@ -100,22 +111,12 @@ class ModelLLM:
                 conversation.append({"role": "system", "content": system_instruction})
             conversation.append({"role": "user", "content": prompt})
 
-        # 2. Definição do Modelo / Preset
-        # Se um preset específico for passado pelo módulo, usa ele.
-        # Senão, usa o default definido no __init__ (@preset/lorandur-cli)
         target_model = model_preset if model_preset else self.default_model
 
-        # 3. Construção do Payload
         payload = {
             "model": target_model, 
             "messages": conversation,
-            # Parâmetros explícitos podem sobrescrever o preset dependendo da API,
-            # mas mantemos para garantir consistência local se o preset não definir.
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "plugins": [
-                {"id": "response-healing"}
-            ]
+            "plugins": [{"id": "response-healing"}]
         }
 
         if response_format:
@@ -126,6 +127,10 @@ class ModelLLM:
     def _make_request_with_retry(self, payload: Dict, retries: int = 3) -> Dict[str, Any]:
         for attempt in range(retries):
             try:
+                # Debug do Payload antes de enviar
+                if attempt == 0:
+                   print(f"[ModelLLM DEBUG] Payload (parcial): model={payload.get('model')}, stream={payload.get('stream', False)}")
+
                 response = requests.post(
                     self.api_url, 
                     headers=self.headers, 
@@ -133,32 +138,22 @@ class ModelLLM:
                     timeout=60
                 )
                 
-                if response.status_code in [429, 500, 502, 503, 504]:
-                    response.raise_for_status()
-                
                 if response.status_code >= 400:
-                    print(f"[ModelLLM] Erro de API ({response.status_code}): {response.text}")
-                    return {"content": "", "error": response.text}
+                    print(f"[ModelLLM ERROR] API HTTP {response.status_code}: {response.text}")
+                    return {"content": "", "error": f"HTTP {response.status_code}: {response.text}"}
 
                 data = response.json()
                 
                 if "choices" in data and len(data["choices"]) > 0:
                     content = data["choices"][0]["message"]["content"]
-                    finish_reason = data["choices"][0].get("finish_reason")
                     usage = data.get("usage", {})
-                    
-                    return {
-                        "content": content,
-                        "usage": usage,
-                        "finish_reason": finish_reason
-                    }
+                    return {"content": content, "usage": usage}
                 else:
+                    print(f"[ModelLLM ERROR] Resposta vazia da API: {data}")
                     return {"content": "", "error": "Empty response from API"}
 
             except requests.exceptions.RequestException as e:
-                wait_time = 2 ** attempt
-                print(f"[ModelLLM] Falha na conexão (Tentativa {attempt+1}/{retries}). Aguardando {wait_time}s...")
-                time.sleep(wait_time)
+                print(f"[ModelLLM WARN] Tentativa {attempt+1}/{retries} falhou: {e}")
+                time.sleep(2 ** attempt)
         
-        print("[ModelLLM] Todas as tentativas falharam.")
         return {"content": "", "error": "Connection failed after retries"}
