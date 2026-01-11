@@ -1,77 +1,76 @@
 {
   "module_id": "step3_front_storyteller",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "type": "TYPE_I_PIPELINE",
-  "description": "Passo 3/3: Cria os Mini-Arcos (Presságios) e Camadas de Realidade.",
+  "description": "Fase 3: Cria a linha do tempo dos eventos (Presságios) e conecta os segredos da campanha (Matriz).",
   "configuration": {
     "model_preset": "@preset/lorandur-cli",
     "response_healing": true
   },
   "inputs_required": [
-    "genre",
-    "trama_argumento",
-    "matriz",
     "step1_arquetipo",
-    "step2_locais",
-    "step2_npcs",
-    "step2_perigos"
+    "step1_locais",
+    "step2_elenco",
+    "step2_perigos",
+    "step2_desastre",
+    "matriz"
   ],
   "input_mapping": {
-    "genre": "context.genre",
-    "trama_argumento": "adventure.trama.argumento.texto",
-    "matriz": "context.runtime.formatted_matrix",
-    "step1_arquetipo": "adventure.front.step1.analise_arquetipica",
-    "step2_locais": "adventure.front.step2.locais_definidos",
-    "step2_npcs": "adventure.front.step2.elenco_npcs",
-    "step2_perigos": "adventure.front.step2.perigos_ameacas"
+    "step1_arquetipo": "adventure.front.step1.cabecalho.arquetipo_selecionado",
+    "step1_locais": "adventure.front.step1.lista_locais",
+    "step2_elenco": "adventure.front.step2.elenco",
+    "step2_perigos": "adventure.front.step2.perigos",
+    "step2_desastre": "adventure.front.step2.desastre_iminente",
+    "matriz": "context.runtime.formatted_matrix"
   },
   "prompts": {
-    "system": "Você é um Diretor Narrativo e Mestre de RPG (Sistema Dominus).\n\n# Objetivo\nEscrever 5 Presságios Terríveis em formato de Mini-Arcos, conectando a Estrutura (Step 1) e o Mundo (Step 2).\n\n# Conceito: Mini-Arco\nUm Presságio NÃO é uma cena estática. É um conflito em andamento. Descreva a situação problemática que os jogadores encontram.\n\n# Instruções Críticas\n1. **Uso de Assets:** Use OBRIGATORIAMENTE Locais, NPCs e Perigos criados no Step 2.\n2. **Camadas de Realidade (Dominus):** Para cada presságio, defina:\n   - *Premissa Evidente:* O problema visível (Gancho).\n   - *Premissa Oculta:* A verdade por trás do problema (Twist/Conexão com a Matriz).\n   - *Justificativa Integrada:* Explique como o evidente esconde o oculto.\n3. **Narrativa Densa:** O campo 'descricao_mini_arco' deve ser um parágrafo rico e sensorial sobre o conflito.",
-    "user": "# INPUTS\nGênero: {{genre}}\nTrama: {{trama_argumento}}\n\n# ESTRUTURA\nArquétipo: {{step1_arquetipo.arquetipo_selecionado}}\nFases: {{step1_arquetipo.meta_estrutura_fases}}\n\n# ASSETS DISPONÍVEIS\nLocais: {{step2_locais}}\nElenco: {{step2_npcs}}\nAmeaças: {{step2_perigos}}\n\n# SEGREDOS (MATRIZ)\n{{matriz}}\n\nEscreva os 5 Presságios (Mini-Arcos)."
+    "system": "Você é um Mestre de RPG especialista e Designer Narrativo.\n\n### Objetivo\nEsta é a etapa final. Você deve pegar a estrutura (Fase 1) e as ameaças (Fase 2) para criar a progressão dramática da aventura. Sua missão é gerar os **Presságios Terríveis** e as **Perguntas Dramáticas**.\n\n### Instruções de Processamento\n\n#### Construção dos Presságios Terríveis (Mini-Arcos):\nCrie uma cadeia cronológica de **5 eventos** (Presságios) que indicam o avanço do Desastre criado na Fase 2.\n**IMPORTANTE:** Não trate os presságios como simples cenas estáticas, mas como **Mini-Arcos de História**.\n\nPara CADA Presságio (Mini-Arco):\n* **Meta-Estrutura:** Selecione um estágio dramático adequado ao momento (1 a 5), baseado no `arquetipo_selecionado` da Fase 1.\n* **Local:** Escolha obrigatoriamente um da `lista_locais`.\n* **Conexão com a Matriz (CRÍTICO):** Você DEVE conectar este presságio a um dos itens da `matriz_controle_informacao`. O evento deve dar uma pista sobre uma das \"Verdades\".\n* **Argumento do Mini-Arco:** Descreva a situação narrativa respondendo Onde, Quando, Quem, Por que e Como.\n* **Dualidade (Premissas):** Defina claramente:\n    * *Premissa Evidente:* O conflito ou situação visível apresentada aos jogadores.\n    * *Premissa Oculta:* O segredo local, a reviravolta ou a motivação escondida deste mini-arco.\n\n#### Perguntas Dramáticas:\nFormule 3 perguntas abertas sobre o destino dos personagens ou do cenário que não têm resposta definida, mas que surgem do conflito entre os perigos e o `desastre_iminente`.",
+    "user": "### 1. Dados da Fase 1 (Estrutura)\n* **Arquétipo Selecionado:** {{step1_arquetipo}}\n* **Lista de Locais:**\n{{#each step1_locais}}\n  - **{{this.nome}}** ({{this.funcao}})\n{{/each}}\n\n### 2. Dados da Fase 2 (Ameaças)\n* **Elenco:**\n{{#each step2_elenco}}\n  - **{{this.nome}}** ({{this.papel_funcao}}): {{this.detalhe_marcante}}\n{{/each}}\n* **Perigos:**\n{{#each step2_perigos}}\n  - **{{this.nome}}** ({{this.tipo}} - {{this.impulso}}): {{this.descricao}} [Vinculado a: {{this.local_vinculado}}]\n{{/each}}\n* **Desastre Iminente:** {{step2_desastre.tipo_desastre}} - {{step2_desastre.descricao}}\n\n### 3. Matriz de Controle de Informação\n{{matriz}}"
   },
   "output_schema": {
     "type": "object",
     "properties": {
-      "racional_narrativo_global": {
-        "type": "string",
-        "description": "Explicação macro de como a tensão escala do Presságio 1 ao 5."
-      },
-      "pressagios_sequencia": {
+      "pressagios_terriveis": {
         "type": "array",
-        "minItems": 5,
-        "maxItems": 5,
+        "description": "Lista ordenada de 5 mini-arcos de história.",
         "items": {
           "type": "object",
           "properties": {
             "ordem": { "type": "integer" },
-            "fase_meta_estrutura": { "type": "string", "description": "Ex: Fase do Sonho, A Frustração." },
-            "local_selecionado": { "type": "string", "description": "Nome exato de um local do Step 2." },
-            "titulo_pressagio": { "type": "string" },
-            "descricao_mini_arco": { 
-              "type": "string", 
-              "description": "Um parágrafo denso descrevendo o CONFLITO ATIVO ou SITUAÇÃO em andamento neste local." 
+            "meta_estrutura": { "type": "string", "description": "Estágio do Arquétipo (ex: A Frustração)" },
+            "local_sugerido": { "type": "string" },
+            "o_pressagio": { "type": "string", "description": "Descrição narrativa do evento." },
+            "argumento_cena": { "type": "string", "description": "Argumento do Mini-Arco: Quem, Onde, Quando, Por que." },
+            "premissas_cena": {
+              "type": "object",
+              "description": "A dualidade do mini-arco.",
+              "properties": {
+                "evidente": { "type": "string", "description": "O conflito visível/público deste arco." },
+                "oculta": { "type": "string", "description": "O segredo ou twist local deste arco." }
+              },
+              "required": ["evidente", "oculta"]
             },
-            "camadas_realidade": {
+            "camada_informacao": {
               "type": "object",
               "properties": {
-                "justificativa_dualidade": { "type": "string", "description": "Racional que conecta o evidente ao oculto." },
-                "premissa_evidente": { "type": "string", "description": "O gancho visível para os jogadores." },
-                "premissa_oculta": { "type": "string", "description": "A verdade secreta/twist deste mini-arco." }
+                "id_matriz": { "type": "integer" },
+                "conexao_explicada": { "type": "string", "description": "Como este mini-arco revela a verdade da Matriz." }
               },
-              "required": ["justificativa_dualidade", "premissa_evidente", "premissa_oculta"]
-            },
-            "pista_matriz": { "type": "string", "description": "Qual item da Matriz é revelado/sugerido aqui." },
-            "npc_chave": { "type": "string" }
+              "required": ["id_matriz", "conexao_explicada"]
+            }
           },
-          "required": ["ordem", "fase_meta_estrutura", "local_selecionado", "titulo_pressagio", "descricao_mini_arco", "camadas_realidade", "pista_matriz"]
-        }
+          "required": ["ordem", "meta_estrutura", "local_sugerido", "o_pressagio", "argumento_cena", "premissas_cena", "camada_informacao"]
+        },
+        "minItems": 5,
+        "maxItems": 5
       },
-      "perguntas_dramaticas": {
+      "perguntas_dramatica": {
         "type": "array",
         "items": { "type": "string" },
-        "minItems": 3
+        "minItems": 3,
+        "maxItems": 3
       }
     },
-    "required": ["racional_narrativo_global", "pressagios_sequencia", "perguntas_dramaticas"]
+    "required": ["pressagios_terriveis", "perguntas_dramatica"]
   }
 }

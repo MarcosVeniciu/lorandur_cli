@@ -1,113 +1,81 @@
 {
   "module_id": "step2_front_worldbuilder",
-  "version": "1.0.0",
+  "version": "2.2.0",
   "type": "TYPE_I_PIPELINE",
-  "description": "Passo 2/3: Cria o Location Pool, Elenco e Perigos baseados no Arquétipo.",
+  "description": "Fase 2: Define a Ameaça, o Elenco de NPCs e o Desastre Iminente baseados no Arquétipo e Locais.",
   "configuration": {
     "model_preset": "@preset/lorandur-cli",
     "response_healing": true
   },
   "inputs_required": [
     "genre",
-    "location_types",
-    "archetype_types",
-    "trama_argumento",
-    "step1_racional",
-    "step1_arquetipo"
+    "subgenres",
+    "argumento",
+    "step1_arquetipo",
+    "step1_foco",
+    "step1_locais",
+    "premissas",
+    "arquetipos_personagens_permitidos"
   ],
   "input_mapping": {
     "genre": "context.genre",
-    "location_types": "context.available_locations_str",
-    "archetype_types": "context.available_archetypes_str",
-    "trama_argumento": "adventure.trama.argumento.texto",
-    "step1_racional": "adventure.front.step1.racional_criativo",
-    "step1_arquetipo": "adventure.front.step1.analise_arquetipica"
+    "subgenres": "adventure.trama.configuracao_aventura.subgeneros_selecionados",
+    "argumento": "adventure.trama.argumento.texto",
+    "step1_arquetipo": "adventure.front.step1.cabecalho.arquetipo_selecionado",
+    "step1_foco": "adventure.front.step1.cabecalho.foco_narrativo",
+    "step1_locais": "adventure.front.step1.lista_locais",
+    "premissas": "adventure.trama.premissas",
+    "arquetipos_personagens_permitidos": "context.available_archetypes_str"
   },
   "prompts": {
-    "system": "Você é um Designer de Cenários e Roteirista Sênior.\n\n# Objetivo\nPovoar o mundo com locais evocativos, NPCs complexos e ameaças ativas, seguindo a visão do Passo 1.\n\n# Diretrizes\n1. **Locais Sensoriais:** Use a lista base, mas crie nomes únicos. Descreva cheiros, sons e iluminação.\n   - Obrigatório: 1 Inicial, 4 Intermediários, 3 Clímax.\n2. **NPCs Tridimensionais:** Dê a cada NPC uma 'Motivação Conflitante' (o que ele quer vs. o que ele teme/esconde).\n3. **Perigos Ativos:** Cada perigo deve ter um Impulso (verbo de ação) e uma justificativa de existência.\n4. **Desastre:** O Game Over narrativo deve ser detalhado.",
-    "user": "# CONTEXTO\nGênero: {{genre}}\nTipos Locais: {{location_types}}\nArquétipos Personagem: {{archetype_types}}\n\nTrama: {{trama_argumento}}\n\n# ESTRUTURA (DO PASSO 1)\nArquétipo: {{step1_arquetipo.arquetipo_selecionado}}\nFoco: {{step1_arquetipo.foco_narrativo}}\nRacional: {{step1_racional.motivo_escolha}}\nGuia: {{step1_racional.guia_desenvolvimento}}\n\nCrie os assets do mundo."
+    "system": "Você é um Mestre de RPG especialista e Designer Narrativo.\n\n### Objetivo\nSua tarefa é dar vida à \"Frente de Aventura\". Utilizando o Arquétipo e os Locais definidos na fase anterior, você deve criar o Elenco, os Perigos ativos e definir o Desastre Iminente.\n\n### Instruções de Processamento\n\n#### 1. Definição do Contexto (Descrição)\nEscreva um breve parágrafo de Descrição da Frente. Resuma o foco central do conflito, conectando o Arquétipo de Enredo à ameaça imediata.\n\n#### 2. Criação do Elenco e Perigos\nO objetivo é criar ameaças vivas e dinâmicas, não apenas estátuas estáticas. Siga estritamente os passos abaixo:\n\n* **Passo A: Elenco (The Cast)**\nListe os NPCs e Organizações cruciais citados no Argumento ou necessários para a trama. Dê a cada um:\n- Nome\n- Papel/Função\n- Detalhe Marcante (algo visual ou de personalidade).\n*Use a lista de `arquetipos_personagens_permitidos` para inspiração.*\n\n* **Passo B: Perigos (Dangers)**\nCrie 2 ou 3 ameaças ativas que se opõem aos jogadores. Para cada Perigo, selecione um **Tipo** e um **Impulso** da lista oficial de Dungeon World abaixo. Não invente impulsos.\n\n* **Vínculo com Local:** Ao descrever o perigo, cite onde ele está operando ou qual local da `lista_locais` ele ameaça diretamente.\n\n**Lista de Referência (Tipo: Impulso):**\n* **Organizações Ambiciosas:**\n    * *Culto:* Infestar a partir de dentro.\n    * *Governo Corrupto:* Manter o status quo.\n    * *Cabala:* Absorver aqueles que estão no poder, crescer.\n    * *Organização Religiosa:* Estabelecer e seguir doutrinas.\n* **Hordas:**\n    * *Criaturas Humanoides (ex: Orcs, Goblins):* Crescer, multiplicar e consumir.\n    * *Habitantes do Submundo:* Defender seus complexos de forasteiros.\n    * *Praga de Mortos-Vivos:* Espalhar.\n* **Inimigos Arcanos:**\n    * *Lorde Morto-Vivo:* Buscar a verdadeira imortalidade.\n    * *Mago Louco por Poder:* Buscar poder mágico a qualquer custo.\n    * *Dragão:* Reunir ouro e joias, proteger sua ninhada.\n* **Lugares Amaldiçoados:**\n    * *Portal das Trevas:* Expelir demônios/monstros.\n    * *Lugar de Poder:* Ser controlado ou domado.\n* **Forças Planares:**\n    * *Deus:* Reunir seguidores.\n    * *Força do Caos:* Destruir qualquer semblante de ordem.\n\n#### 3. Definição do Desastre Iminente\nDefina o \"Game Over\" narrativo. O que acontece se os jogadores falharem completamente?\nEscolha um **Tipo de Desastre**: Tirania, Pestilência, Destruição, Usurpação, Empobrecimento, Caos.",
+    "user": "### 1. Dados da Fase Anterior\n* **Arquétipo Selecionado:** {{step1_arquetipo}}\n* **Foco Narrativo:** {{step1_foco}}\n* **Lista de Locais:**\n{{#each step1_locais}}\n  - **{{this.nome}}**: {{this.descricao_visual}}\n{{/each}}\n\n### 2. Argumento\n{{argumento}}\n\n### 3. Matriz de Controle de Informação\n* **Premissa Evidente:** {{premissas.evidente.texto}}\n* **Premissa Oculta:** {{premissas.oculta.texto}}\n\n### 4. Arquétipos de Personagens Permitidos\n{{arquetipos_personagens_permitidos}}\n\n---\n\nCom base nessas informações, gere o JSON da Fase 2 (Ameaça)."
   },
   "output_schema": {
     "type": "object",
     "properties": {
-      "locais_definidos": {
-        "type": "object",
-        "properties": {
-          "inicial": {
-            "type": "array",
-            "maxItems": 1,
-            "items": {
-              "type": "object",
-              "properties": {
-                "tipo_base": { "type": "string" },
-                "nome_proprio": { "type": "string" },
-                "descricao_sensorial": { "type": "string" },
-                "justificativa_escolha": { "type": "string" }
-              },
-              "required": ["tipo_base", "nome_proprio", "descricao_sensorial", "justificativa_escolha"]
-            }
-          },
-          "desenvolvimento": {
-            "type": "array",
-            "minItems": 4,
-            "maxItems": 4,
-            "items": {
-              "type": "object",
-              "properties": { "tipo_base": {"type": "string"}, "nome_proprio": {"type": "string"}, "descricao_sensorial": {"type": "string"}, "justificativa_escolha": {"type": "string"} },
-              "required": ["tipo_base", "nome_proprio", "descricao_sensorial", "justificativa_escolha"]
-            }
-          },
-          "climax": {
-            "type": "array",
-            "minItems": 3,
-            "maxItems": 3,
-            "items": {
-              "type": "object",
-              "properties": { "tipo_base": {"type": "string"}, "nome_proprio": {"type": "string"}, "descricao_sensorial": {"type": "string"}, "justificativa_escolha": {"type": "string"} },
-              "required": ["tipo_base", "nome_proprio", "descricao_sensorial", "justificativa_escolha"]
-            }
-          }
-        },
-        "required": ["inicial", "desenvolvimento", "climax"]
+      "descricao_frente": {
+        "type": "string",
+        "description": "Breve parágrafo resumindo o conflito central e conectando o arquétipo à ameaça."
       },
-      "elenco_npcs": {
+      "elenco": {
         "type": "array",
+        "description": "NPCs e Organizações cruciais.",
         "items": {
           "type": "object",
           "properties": {
             "nome": { "type": "string" },
-            "arquetipo_base": { "type": "string" },
-            "funcao_na_trama": { "type": "string" },
-            "motivacao_primaria": { "type": "string" },
-            "motivacao_conflitante": { "type": "string", "description": "Desejo secreto ou contradição que dá profundidade." }
+            "papel_funcao": { "type": "string" },
+            "detalhe_marcante": { "type": "string", "description": "Algo visual ou de personalidade." }
           },
-          "required": ["nome", "arquetipo_base", "funcao_na_trama", "motivacao_primaria", "motivacao_conflitante"]
+          "required": ["nome", "papel_funcao", "detalhe_marcante"]
         }
       },
-      "perigos_ameacas": {
+      "perigos": {
         "type": "array",
+        "description": "Ameaças ativas (2 ou 3).",
         "items": {
           "type": "object",
           "properties": {
             "nome": { "type": "string" },
-            "tipo": { "type": "string" },
-            "impulso": { "type": "string", "description": "O que fará se não for detido." },
-            "descricao_profunda": { "type": "string" },
-            "justificativa_existencia": { "type": "string" }
+            "tipo": { "type": "string", "description": "Ex: Horda, Inimigo Arcano, etc." },
+            "impulso": { "type": "string", "description": "O impulso oficial correspondente." },
+            "local_vinculado": { "type": "string", "description": "Qual local da lista ele ocupa ou ameaça." },
+            "descricao": { "type": "string", "description": "Descrição da ameaça em ação." }
           },
-          "required": ["nome", "tipo", "impulso", "descricao_profunda", "justificativa_existencia"]
+          "required": ["nome", "tipo", "impulso", "local_vinculado", "descricao"]
         }
       },
       "desastre_iminente": {
         "type": "object",
+        "description": "O Game Over narrativo.",
         "properties": {
-          "titulo": { "type": "string" },
-          "descricao_cena_final": { "type": "string" },
-          "justificativa_impacto": { "type": "string" }
+          "tipo_desastre": { "type": "string", "enum": ["Tirania", "Pestilência", "Destruição", "Usurpação", "Empobrecimento", "Caos"] },
+          "descricao": { "type": "string", "description": "O que acontece se os jogadores falharem." }
         },
-        "required": ["titulo", "descricao_cena_final", "justificativa_impacto"]
+        "required": ["tipo_desastre", "descricao"]
       }
     },
-    "required": ["locais_definidos", "elenco_npcs", "perigos_ameacas", "desastre_iminente"]
+    "required": ["descricao_frente", "elenco", "perigos", "desastre_iminente"]
   }
 }

@@ -1,8 +1,8 @@
 {
   "module_id": "step1_front_archetype",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "TYPE_I_PIPELINE",
-  "description": "Passo 1/3: Define o Arquétipo Narrativo e a Meta-Estrutura (Curva Dramática).",
+  "description": "Fase 1: Define o Arquétipo Narrativo, Foco e Instancia os Locais (Estrutura e Palco).",
   "configuration": {
     "model_preset": "@preset/lorandur-cli",
     "response_healing": true
@@ -11,54 +11,50 @@
     "genre",
     "subgenres",
     "scope",
+    "location_types",
     "argumento",
-    "premissas",
-    "matriz"
+    "premissas"
   ],
   "input_mapping": {
     "genre": "context.genre",
     "subgenres": "adventure.trama.configuracao_aventura.subgeneros_selecionados",
-    "scope": "context.runtime.full_scope_description",
+    "scope": "adventure.trama.configuracao_aventura.escopo_selecionado",
+    "location_types": "context.available_locations_str",
     "argumento": "adventure.trama.argumento.texto",
-    "premissas": "adventure.trama.premissas",
-    "matriz": "context.runtime.formatted_matrix"
+    "premissas": "adventure.trama.premissas"
   },
   "prompts": {
-    "system": "Você é um Mestre de RPG especialista e Arquiteto Narrativo.\n\n# Objetivo\nAnalise a Trama gerada e escolha a MELHOR estrutura narrativa (Arquétipo) para conduzir a sessão. Não crie cenas específicas, apenas a espinha dorsal dramática.\n\n# Biblioteca de Arquétipos (Meta-Estruturas)\nUse estas definições:\n\n1. **Superar o Monstro**: Foco em sobrevivência.\n   Fases: [\"Antecipação\", \"Sonho (Preparação)\", \"Frustração (O Monstro)\", \"Pesadelo\", \"Fuga/Vitória\"]\n\n2. **Da Miséria à Riqueza**: Foco em ascensão.\n   Fases: [\"Miséria\", \"Sucesso Inicial\", \"Crise Central\", \"Independência\", \"Completude\"]\n\n3. **A Busca**: Foco em viagem e MacGuffin.\n   Fases: [\"Chamado\", \"Jornada\", \"Chegada/Frustração\", \"Provações\", \"Objetivo\"]\n\n4. **Viagem e Retorno**: Foco em mundo estranho.\n   Fases: [\"Queda\", \"Fascínio\", \"Frustração (Regras)\", \"Pesadelo (Sombra)\", \"Fuga\"]\n\n5. **Renascimento**: Foco em redenção.\n   Fases: [\"Queda\", \"Sonho\", \"Frustração (Prisão)\", \"Pesadelo\", \"Renascimento\"]\n\n6. **Tragédia**: Foco em queda moral.\n   Fases: [\"Tentação\", \"Sonho (Crime)\", \"Frustração (Consequência)\", \"Pesadelo\", \"Destruição\"]\n\n7. **Comédia**: Foco em confusão e verdade.\n   Fases: [\"Confusão\", \"O Nó\", \"Clímax do Caos\", \"Revelação\", \"Festa\"]\n\n# Instruções\n1. Analise o Argumento e Gênero.\n2. Escolha UM arquétipo.\n3. Defina as 5 fases exatas.\n4. Justifique no 'racional_criativo'.",
-    "user": "# DADOS DE ENTRADA\nContexto: {{genre}} / {{subgenres}}\nEscopo: {{scope}}\n\nTrama (Verdade do Mestre):\n{{argumento}}\n\nPremissas Trama:\n- Evidente: {{premissas.evidente.texto}}\n- Oculta: {{premissas.oculta.texto}}\n\nMatriz:\n{{matriz}}\n\nDefina a estrutura."
+    "system": "Você é um Mestre de RPG especialista e Designer Narrativo.\n\n### Objetivo\nSua tarefa é iniciar a criação de uma \"Frente de Aventura\" (nível de sessão/episódio). Nesta Fase 1, você deve transformar os conceitos abstratos da Trama em uma estrutura sólida, definindo o **Arquétipo de Enredo**, o **Foco Narrativo** e a **Lista de Locais** onde a ação ocorrerá.\n\n### Instruções de Processamento \n\n#### 1. Análise de Contexto e Arquétipo: \n* Analise o `genero_principal`, `subgeneros` e o `argumento` da trama. \n* Escolha **UM dos 7 Arquétipos de Enredo** abaixo para servir de espinha dorsal narrativa. Utilize a Meta-Estrutura do arquétipo escolhido para definir o tom dos Presságios: \n    * **Superar o Monstro:** Foco em heroísmo e sobrevivência contra uma ameaça colossal. \n        * *Meta-Estrutura:* 1. Antecipação/Chamado -> 2. Fase do Sonho (Preparação) -> 3. A Frustração -> 4. O Pesadelo -> 5. Fuga da Morte/Vitória. \n    * **Da Miséria à Riqueza (Do Pano para a Manga):** Foco em crescimento pessoal e ascensão de status a partir do nada. \n        * *Meta-Estrutura:* 1. Miséria Inicial -> 2. Sucesso Inicial -> 3. A Crise Central (Tudo dá errado) -> 4. Independência/Provação -> 5. Completude. \n    * **A Busca:** Foco na viagem e trabalho em equipe para recuperar algo essencial. \n        * *Meta-Estrutura:* 1. O Chamado -> 2. A Jornada -> 3. Chegada e Frustração (Barreira) -> 4. Provações Finais -> 5. O Objetivo. \n    * **Viagem e Retorno:** Foco em exploração de um mundo estranho e a necessidade de escapar dele. \n        * *Meta-Estrutura:* 1. Queda no Outro Mundo -> 2. Fascínio (Lua de Mel) -> 3. A Frustração (Regras Opressoras) -> 4. O Pesadelo (Sombra Hostil) -> 5. Fuga e Retorno. \n    * **Renascimento:** Foco em redenção e libertação de uma maldição ou influência sombria. \n        * *Meta-Estrutura:* 1. Queda sob a Sombra -> 2. Fase do Sonho (O Poder da Sombra) -> 3. A Frustração (Prisão) -> 4. O Pesadelo (Fundo do Poço) -> 5. O Renascimento. \n    * **Tragédia:** Foco na consequência moral de buscar objetivos por meios proibidos. \n        * *Meta-Estrutura:* 1. Tentação -> 2. Fase do Sonho (O Crime Compensa) -> 3. A Frustração (Consequências) -> 4. O Pesadelo (Perda de Controle) -> 5. Destruição. \n    * **Comédia:** Foco em confusão, mal-entendidos e intriga social que caminham para a clareza. \n        * *Meta-Estrutura:* 1. Sombra da Confusão -> 2. O Nó se Aperta -> 3. Clímax da Confusão (Caos Total) -> 4. A Revelação (Verdade) -> 5. Resolução/Festa. \n\n#### 2. Instanciação de Locais (Location Pool):\nTrate a lista de `tipos_locais_permitidos` como sementes temáticas. Aplique a técnica de **'Zoom Out Contextual'** para adequá-los ao Nível de Escopo (0 a 5): Trate a lista de `tipos_locais_permitidos` como arquétipos narrativos abstratos e sementes temáticas, jamais como locais geográficos rígidos ou literais. Você deve adaptar dinamicamente esses descritores genéricos aplicando a técnica de 'Zoom Out Contextual' para que se encaixem no Nível de Escopo (0 a 5) definido: \n* **Escalabilidade:** Se o descritor for 'Pequeno' mas o escopo for 'Macro', transforme-o em uma região/planeta com esse tema. Se for 'Vasto' mas o escopo for 'Micro', foque em um detalhe específico.\n* **Contexto de Gênero:** Interprete a semente de acordo com o tom (ex: 'Vila' no Sci-Fi pode ser uma colônia em asteroide).\n* **Crie nomes específicos e evocativos para 8 locais.**\n\n**Distribuição Obrigatória:**\n* 1 Local Inicial (Onde a aventura começa).\n* 4 Locais Intermediários (Investigação/Desenvolvimento).\n* 3 Locais de Clímax (Confronto Final/Desastre).\n\n#### 3. Definição do Foco Narrativo:\nCom base no Arquétipo e nos Locais gerados, sintetize em uma frase o `foco_narrativo`. Isso servirá de \"bússola\" para a criação dos perigos na próxima etapa (ex: \"Sobrevivência em ambiente hostil com recursos escassos\" ou \"Investigação política em bailes de alta sociedade\").",
+    "user": "### 1. Configuração da Aventura\n* **Gênero Principal:** {{genre}}\n* **Subgêneros:** {{subgenres}}\n* **Escopo Selecionado:** {{scope}}\n* **Tipos de Locais Permitidos:** {{location_types}}\n\n### 2. Argumento\n{{argumento}}\n\n### 3. Premissas\n* **Premissa Evidente:** {{premissas.evidente.texto}}\n* **Premissa Oculta:** {{premissas.oculta.texto}}"
   },
   "output_schema": {
     "type": "object",
     "properties": {
-      "analise_arquetipica": {
+      "cabecalho": {
         "type": "object",
         "properties": {
-          "arquetipo_selecionado": {
-            "type": "string",
-            "enum": ["Superar o Monstro", "Da Miséria à Riqueza", "A Busca", "Viagem e Retorno", "Renascimento", "Tragédia", "Comédia"]
-          },
-          "meta_estrutura_fases": {
-            "type": "array",
-            "items": { "type": "string" },
-            "description": "Lista exata das 5 fases."
-          },
-          "foco_narrativo": {
-            "type": "string",
-            "description": "Tema central ou 'vibe' da sessão."
-          }
+          "arquetipo_selecionado": { "type": "string" },
+          "meta_estrutura_resumo": { "type": "string" },
+          "foco_narrativo": { "type": "string", "description": "A bússola temática para a próxima fase." }
         },
-        "required": ["arquetipo_selecionado", "meta_estrutura_fases", "foco_narrativo"]
+        "required": ["arquetipo_selecionado", "foco_narrativo"]
       },
-      "racional_criativo": {
-        "type": "object",
-        "properties": {
-          "motivo_escolha": { "type": "string" },
-          "influencia_subgeneros": { "type": "string" },
-          "guia_desenvolvimento": { "type": "string", "description": "Instruções para o Narrador sobre como distribuir a tensão." }
+      "lista_locais": {
+        "type": "array",
+        "description": "Lista de 8 locais instanciados.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "nome": { "type": "string" },
+            "tags": { "type": "string" },
+            "funcao": { "type": "string", "enum": ["Inicial", "Intermediario", "Climax"] }
+          },
+          "required": ["nome", "funcao"]
         },
-        "required": ["motivo_escolha", "influencia_subgeneros", "guia_desenvolvimento"]
+        "minItems": 8,
+        "maxItems": 8
       }
     },
-    "required": ["analise_arquetipica", "racional_criativo"]
+    "required": ["cabecalho", "lista_locais"]
   }
 }
