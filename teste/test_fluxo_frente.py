@@ -4,17 +4,35 @@ import os
 import json
 import logging
 import sys
+import time
 from datetime import datetime
 
-# === CORREÇÃO DE IMPORTAÇÃO ===
-# Adiciona o diretório pai (raiz do projeto) ao sys.path para encontrar game_controller
+# Adiciona o diretório pai (raiz do projeto) ao sys.path para encontrar os módulos
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from game_controller import GameController
+from engine.sync_manager import SyncManager
 
 # Configuração de Logs
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("TestFluxoCompleto")
+
+def calculate_cost(usage_dict):
+    """
+    Calcula custo estimado para Gemini 2.0 Flash (Preview/Free por enquanto).
+    """
+    if not usage_dict:
+        return 0.0
+    
+    prompt_tokens = usage_dict.get('prompt_tokens', 0)
+    completion_tokens = usage_dict.get('completion_tokens', 0)
+    
+    # Preços por 1 Milhão de tokens (Referência genérica)
+    price_input = 0.10 
+    price_output = 0.40
+    
+    cost = (prompt_tokens / 1_000_000 * price_input) + (completion_tokens / 1_000_000 * price_output)
+    return cost
 
 class TestFluxoCompleto(unittest.TestCase):
     """
@@ -29,10 +47,13 @@ class TestFluxoCompleto(unittest.TestCase):
     """
 
     def setUp(self):
+        # === 0. SINCRONIZAÇÃO OBRIGATÓRIA ===
+        print("\n[SETUP] Sincronizando banco de dados de módulos...")
+        SyncManager().sync_all()
+
         self.controller = GameController()
         
         # === 1. DEFINIÇÃO DO CONTEXTO INICIAL ===
-        # Não mockamos a Trama. Apenas definimos o Gênero e o Mundo.
         self.context_input = {
             "genre": "Dieselpunk",
             "available_locations_str": "Fábrica de Autômatos, Estação de Trem Blindada, Bar Clandestino (Speakeasy), Hangar de Zeppelins, Torre de Rádio da Propaganda, Esgotos de Óleo, Mansão do Barão, Doca de Carregamento",
@@ -53,25 +74,23 @@ class TestFluxoCompleto(unittest.TestCase):
         """Executa a cadeia completa de geração e valida o fluxo de dados."""
         logger.info(">>> Iniciando Sequência Completa de Geração...")
 
-        # Loop de Eventos para chamadas assíncronas
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
+        start_time = time.time()  # Início da medição de tempo
+
         try:
             # === FASE 1: GERAR TRAMA ===
             logger.info(">>> [1/4] Executando Módulo Trama...")
-            # Assumindo que o ID do módulo de trama é 'trama'
-            trama_result = loop.run_until_complete(
-                self.controller.module_executor.execute_module("trama", self.controller.game_state)
-            )
-            self.assertIsNotNone(trama_result, "A Trama não deve ser nula.")
+            trama_result = self.controller.module_executor.execute("core_trama_generator", self.controller.game_state)
             
-            # Atualiza o estado com a Trama gerada (Input real para a Frente)
+            self.assertIsNotNone(trama_result, "A Trama não deve ser nula.")
             self.controller.set_trama_state(trama_result)
             logger.info("✓ Trama Gerada e salva no Estado.")
 
             # === FASE 2: GERAR FRENTE (PIPELINE) ===
             logger.info(">>> [2/4] Executando Pipeline da Frente (Steps 1, 2, 3)...")
+            
             front_result = loop.run_until_complete(
                 self.controller.generate_adventure_front_pipeline()
             )
@@ -82,16 +101,21 @@ class TestFluxoCompleto(unittest.TestCase):
             self.assertIn("story", front_result)
             logger.info("✓ Pipeline da Frente concluído com sucesso.")
 
-            # === RELATÓRIO ===
-            self._generate_detailed_report(trama_result, front_result)
+            # Cálculo de duração
+            duration = time.time() - start_time
 
+            # === RELATÓRIO ===
+            self._generate_detailed_report(trama_result, front_result, duration)
+
+        except Exception as e:
+            self.fail(f"Teste interrompido por erro: {e}")
+            
         finally:
             loop.close()
 
     def _get_module_data(self, module_filename):
         """Lê o arquivo JSON do módulo para extrair Prompts e Schema."""
         try:
-            # Caminho corrigido para buscar modules_source a partir da raiz
             root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
             path = os.path.join(root_path, "modules_source", module_filename)
             with open(path, 'r', encoding='utf-8') as f:
@@ -100,17 +124,22 @@ class TestFluxoCompleto(unittest.TestCase):
             logger.warning(f"Não foi possível ler o arquivo do módulo {module_filename}: {e}")
             return {"prompts": {"system": "Erro ao ler arquivo", "user": "Erro ao ler arquivo"}, "output_schema": {}}
 
-    def _generate_detailed_report(self, trama, frente):
+    def _generate_detailed_report(self, trama, frente, duration):
         """Gera Markdown combinando Prompts usados e Respostas geradas."""
         timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
-        # Garante que a pasta existe no caminho correto
         root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         report_dir = os.path.join(root_path, "teste", "relatorios_teste")
         os.makedirs(report_dir, exist_ok=True)
         
         filename = os.path.join(report_dir, f"full_flow_{timestamp}.md")
 
-        # Carrega dados brutos dos módulos para exibição
+        # Dados de métricas do último passo executado
+        debug_data = self.controller.module_executor.last_prompt_debug
+        usage = debug_data.get('usage', {})
+        finish_reason = debug_data.get('finish_reason', 'Unknown')
+        cost = calculate_cost(usage)
+
+        # Carrega dados dos módulos
         mod_trama = self._get_module_data("trama.json")
         mod_step1 = self._get_module_data("frente_step1_archetype.json")
         mod_step2 = self._get_module_data("frente_step2_worldbuilder.json")
@@ -121,6 +150,18 @@ class TestFluxoCompleto(unittest.TestCase):
             f.write(f"**Data:** {timestamp} | **Gênero:** {self.context_input['genre']}\n")
             f.write(f"**Escopo:** {self.context_input['runtime']['full_scope_description']}\n\n")
             
+            # --- BLOCO DE MÉTRICAS ---
+            f.write("## 📊 Métricas de Execução\n")
+            f.write("| Métrica | Valor |\n")
+            f.write("| :--- | :--- |\n")
+            f.write(f"| **Tempo Total (Fluxo)** | {duration:.2f}s |\n")
+            f.write(f"| **Tokens Entrada (Last Step)** | {usage.get('prompt_tokens', 0)} |\n")
+            f.write(f"| **Tokens Saída (Last Step)** | {usage.get('completion_tokens', 0)} |\n")
+            f.write(f"| **Tokens Total (Last Step)** | {usage.get('total_tokens', 0)} |\n")
+            f.write(f"| **Custo Estimado (Last Step)** | ${cost:.6f} |\n")
+            f.write(f"| **Stop Reason** | {finish_reason} |\n")
+            f.write("\n---\n")
+
             # helper para escrever seções
             def write_section(title, module_data, result_data, icon):
                 f.write(f"\n## {icon} {title}\n")
