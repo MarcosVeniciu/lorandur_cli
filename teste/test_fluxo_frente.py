@@ -38,35 +38,29 @@ class TestFluxoCompleto(unittest.TestCase):
     """
     Teste de Integração TOTAL (End-to-End).
     Executa sequencialmente:
-    1. Trama (Geração da semente)
-    2. Frente Step 1 (Arquiteto)
-    3. Frente Step 2 (Worldbuilder)
-    4. Frente Step 3 (Storyteller)
+    1. Trama (Geração da semente e Matriz)
+    2. Frente Step 1 (Arquiteto & Locais Sensoriais)
+    3. Frente Step 2 (Worldbuilder & Ameaças)
+    4. Frente Step 3 (Storyteller & Presságios Conectados)
     
-    Gera um relatório contendo Prompts e Respostas para auditoria.
+    Gera um relatório markdown contendo Prompts e Respostas para auditoria.
     """
 
     def setUp(self):
         # === 0. SINCRONIZAÇÃO OBRIGATÓRIA ===
-        print("\n[SETUP] Sincronizando banco de dados de módulos...")
-        SyncManager().sync_all()
+        # Garante que os arquivos JSON mais recentes sejam lidos
+        # print("\n[SETUP] Sincronizando banco de dados de módulos...")
+        # SyncManager().sync_all()
 
         self.controller = GameController()
         
         # === 1. DEFINIÇÃO DO CONTEXTO INICIAL ===
+        # ATUALIZAÇÃO: Não precisamos mais definir 'runtime' ou 'formatted_matrix' manualmente.
+        # O GameController agora gerencia o fluxo de dados diretamente via JSON mapping.
         self.context_input = {
             "genre": "Dieselpunk",
             "available_locations_str": "Fábrica de Autômatos, Estação de Trem Blindada, Bar Clandestino (Speakeasy), Hangar de Zeppelins, Torre de Rádio da Propaganda, Esgotos de Óleo, Mansão do Barão, Doca de Carregamento",
-            "available_archetypes_str": "Veterano da Grande Guerra, Mecânico de Autômatos, Espião Corporativo, Cientista Louco, Aristocrata Decadente, Líder Operário",
-            "runtime": {
-                "full_scope_description": "A Cidade-Fornalha de Ferrus. Uma distopia industrial onde a fumaça cobre o sol. A elite vive em torres de vidro acima da fuligem, enquanto os trabalhadores operam as grandes máquinas no nível da rua. Há rumores de que o combustível 'Éter Negro' é feito de pessoas.",
-                "formatted_matrix": (
-                    "1. O Barão de Ferro está morto há anos; uma IA analógica controla sua voz.\n"
-                    "2. O carregamento de 'Carvão Azul' é, na verdade, almas cristalizadas.\n"
-                    "3. A Resistência foi infiltrada pela polícia secreta (Gestapo de Ferro) desde o início.\n"
-                    "4. A Doca 7 esconde o protótipo de uma bomba de antimatéria."
-                )
-            }
+            "available_archetypes_str": "Veterano da Grande Guerra, Mecânico de Autômatos, Espião Corporativo, Cientista Louco, Aristocrata Decadente, Líder Operário"
         }
         self.controller.update_context(self.context_input)
 
@@ -85,6 +79,11 @@ class TestFluxoCompleto(unittest.TestCase):
             trama_result = self.controller.module_executor.execute("core_trama_generator", self.controller.game_state)
             
             self.assertIsNotNone(trama_result, "A Trama não deve ser nula.")
+            # Valida campos essenciais da Trama V3.0
+            self.assertIn("matriz_controle_informacao", trama_result)
+            
+            # Atualiza o controller com a Trama.
+            # O GameController armazena isso em adventure.trama, que será lido automaticamente pelos próximos passos.
             self.controller.set_trama_state(trama_result)
             logger.info("✓ Trama Gerada e salva no Estado.")
 
@@ -99,6 +98,12 @@ class TestFluxoCompleto(unittest.TestCase):
             self.assertIn("structure", front_result)
             self.assertIn("world", front_result)
             self.assertIn("story", front_result)
+            
+            # Validações Básicas dos Schemas
+            self.assertIn("cabecalho", front_result["structure"], "Step 1 deve ter 'cabecalho'")
+            self.assertIn("perigos", front_result["world"], "Step 2 deve ter 'perigos'")
+            self.assertIn("pressagios_terriveis", front_result["story"], "Step 3 deve ter 'pressagios_terriveis'")
+
             logger.info("✓ Pipeline da Frente concluído com sucesso.")
 
             # Cálculo de duração
@@ -108,6 +113,7 @@ class TestFluxoCompleto(unittest.TestCase):
             self._generate_detailed_report(trama_result, front_result, duration)
 
         except Exception as e:
+            logger.error(f"Erro durante o teste: {e}")
             self.fail(f"Teste interrompido por erro: {e}")
             
         finally:
@@ -118,51 +124,50 @@ class TestFluxoCompleto(unittest.TestCase):
         try:
             root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
             path = os.path.join(root_path, "modules_source", module_filename)
-            with open(path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+            # Tenta ler do diretório source local se existir, senão ignora (ou mocka)
+            if os.path.exists(path):
+                with open(path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return {"prompts": {"system": "N/A", "user": "N/A"}, "output_schema": {}}
         except Exception as e:
             logger.warning(f"Não foi possível ler o arquivo do módulo {module_filename}: {e}")
-            return {"prompts": {"system": "Erro ao ler arquivo", "user": "Erro ao ler arquivo"}, "output_schema": {}}
+            return {"prompts": {"system": "Erro", "user": "Erro"}, "output_schema": {}}
 
     def _generate_detailed_report(self, trama, frente, duration):
-        """Gera Markdown combinando Prompts usados e Respostas geradas."""
+        """Gera Markdown combinando Prompts usados e Respostas geradas (Atualizado para Schemas V2.x)."""
         timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
         root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         report_dir = os.path.join(root_path, "teste", "relatorios_teste")
         os.makedirs(report_dir, exist_ok=True)
         
-        filename = os.path.join(report_dir, f"full_flow_{timestamp}.md")
+        filename = os.path.join(report_dir, f"full_flow_v2_{timestamp}.md")
 
         # Dados de métricas do último passo executado
-        debug_data = self.controller.module_executor.last_prompt_debug
+        debug_data = self.controller.module_executor.last_prompt_debug or {}
         usage = debug_data.get('usage', {})
-        finish_reason = debug_data.get('finish_reason', 'Unknown')
         cost = calculate_cost(usage)
 
-        # Carrega dados dos módulos
+        # Carrega dados dos módulos para referência no relatório
         mod_trama = self._get_module_data("trama.json")
         mod_step1 = self._get_module_data("frente_step1_archetype.json")
         mod_step2 = self._get_module_data("frente_step2_worldbuilder.json")
         mod_step3 = self._get_module_data("frente_step3_storyteller.json")
 
         with open(filename, "w", encoding="utf-8") as f:
-            f.write(f"# Relatório Completo: Fluxo Trama -> Frente (V5)\n")
+            f.write(f"# Relatório Completo: Fluxo Trama -> Frente (Schemas Atualizados)\n")
             f.write(f"**Data:** {timestamp} | **Gênero:** {self.context_input['genre']}\n")
-            f.write(f"**Escopo:** {self.context_input['runtime']['full_scope_description']}\n\n")
+            f.write(f"**Status:** ✅ Sucesso\n\n")
             
             # --- BLOCO DE MÉTRICAS ---
             f.write("## 📊 Métricas de Execução\n")
             f.write("| Métrica | Valor |\n")
             f.write("| :--- | :--- |\n")
             f.write(f"| **Tempo Total (Fluxo)** | {duration:.2f}s |\n")
-            f.write(f"| **Tokens Entrada (Last Step)** | {usage.get('prompt_tokens', 0)} |\n")
-            f.write(f"| **Tokens Saída (Last Step)** | {usage.get('completion_tokens', 0)} |\n")
             f.write(f"| **Tokens Total (Last Step)** | {usage.get('total_tokens', 0)} |\n")
             f.write(f"| **Custo Estimado (Last Step)** | ${cost:.6f} |\n")
-            f.write(f"| **Stop Reason** | {finish_reason} |\n")
             f.write("\n---\n")
 
-            # helper para escrever seções
+            # Helper para escrever seções
             def write_section(title, module_data, result_data, icon):
                 f.write(f"\n## {icon} {title}\n")
                 f.write("<details>\n<summary><strong>⚙️ Ver Prompts & Schema (Técnico)</strong></summary>\n\n")
@@ -176,35 +181,52 @@ class TestFluxoCompleto(unittest.TestCase):
                 f.write("\n---\n")
 
             # 1. TRAMA
-            write_section("Fase 1: A Trama", mod_trama, trama, "📜")
-            
-            # Visualização Humana da Trama
-            f.write(f"**Resumo Trama:** {trama.get('argumento', {}).get('texto', 'N/A')}\n")
+            write_section("Fase 1: A Trama (V3)", mod_trama, trama, "📜")
+            f.write(f"**Argumento:** {trama.get('argumento', {}).get('texto', 'N/A')}\n")
             f.write(f"**Premissa Oculta:** {trama.get('premissas', {}).get('oculta', {}).get('texto', 'N/A')}\n")
+            f.write("**Matriz de Informação (Resumo):**\n")
+            for item in trama.get('matriz_controle_informacao', {}).get('itens', []):
+                f.write(f"- [ID {item.get('id')}] {item.get('titulo')}: {item.get('a_verdade')}\n")
             f.write("\n---\n")
 
             # 2. STEP 1
-            write_section("Fase 2.1: Arquiteto (Estrutura)", mod_step1, frente['structure'], "🏛️")
+            write_section("Fase 2.1: Arquiteto (Palco)", mod_step1, frente['structure'], "🏛️")
             s1 = frente['structure']
-            f.write(f"**Arquétipo:** {s1.get('analise_arquetipica', {}).get('arquetipo_selecionado')}\n")
-            f.write(f"**Justificativa:** {s1.get('racional_criativo', {}).get('motivo_escolha')}\n")
+            cabecalho = s1.get('cabecalho', {})
+            f.write(f"**Arquétipo:** {cabecalho.get('arquetipo_selecionado')}\n")
+            f.write(f"**Foco Narrativo:** {cabecalho.get('foco_narrativo')}\n")
+            f.write("**Amostra de Locais (Sensorial):**\n")
+            for loc in s1.get('lista_locais', [])[:3]: # Mostra 3 primeiros
+                f.write(f"- **{loc.get('nome')}**: {loc.get('descricao')}\n")
             f.write("\n---\n")
 
             # 3. STEP 2
-            write_section("Fase 2.2: Worldbuilder (Ativos)", mod_step2, frente['world'], "🌍")
-            
+            write_section("Fase 2.2: Worldbuilder (Ameaças)", mod_step2, frente['world'], "🌍")
+            s2 = frente['world']
+            f.write(f"**Desastre Iminente:** {s2.get('desastre_iminente', {}).get('descricao')}\n")
+            f.write("**Perigos:**\n")
+            for p in s2.get('perigos', []):
+                f.write(f"- {p.get('nome')} ({p.get('tipo')}): {p.get('descricao')}\n")
+            f.write("\n---\n")
+
             # 4. STEP 3
-            write_section("Fase 2.3: Storyteller (Presságios)", mod_step3, frente['story'], "🎬")
-            
-            # Visualização Humana dos Presságios (Mini-Arcos)
+            write_section("Fase 2.3: Storyteller (Linha do Tempo)", mod_step3, frente['story'], "🎬")
             s3 = frente['story']
-            f.write("### ⚔️ Visualização Final dos Presságios\n")
-            for p in s3.get('pressagios_sequencia', []):
-                f.write(f"**{p.get('ordem')}. {p.get('titulo_pressagio')}** ({p.get('fase_meta_estrutura')})\n")
-                f.write(f"> *{p.get('descricao_mini_arco')}*\n\n")
-                f.write(f"- **Evidente:** {p.get('camadas_realidade', {}).get('premissa_evidente')}\n")
-                f.write(f"- **Oculto:** {p.get('camadas_realidade', {}).get('premissa_oculta')}\n")
-                f.write(f"- **Justificativa:** {p.get('camadas_realidade', {}).get('justificativa_dualidade')}\n\n")
+            
+            # Visualização Humana dos Presságios (Adaptado para Schema V2.5)
+            f.write("### ⚔️ Visualização dos Presságios Terríveis\n")
+            pressagios = s3.get('pressagios_terriveis', [])
+            
+            for p in pressagios:
+                f.write(f"**{p.get('ordem')}. {p.get('meta_estrutura')}** (Local: {p.get('local_sugerido')})\n")
+                f.write(f"> *{p.get('o_pressagio')}*\n\n")
+                f.write(f"- **Evidente:** {p.get('premissas_cena', {}).get('evidente')}\n")
+                f.write(f"- **Oculta:** {p.get('premissas_cena', {}).get('oculta')}\n")
+                f.write(f"- **🧩 Conexão Matriz [ID {p.get('camada_informacao', {}).get('id_matriz')}]:** {p.get('camada_informacao', {}).get('conexao_explicada')}\n\n")
+
+            f.write("\n### ❓ Perguntas Dramáticas\n")
+            for q in s3.get('perguntas_dramatica', []):
+                f.write(f"- {q}\n")
 
         logger.info(f"Relatório Completo gerado em: {filename}")
 
