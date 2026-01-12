@@ -5,7 +5,7 @@ from engine.crypto_utils import CryptoUtils
 
 class DBManager:
     def __init__(self, db_path: str = None):
-        # CORREÇÃO CRÍTICA: Caminho absoluto relativo ao arquivo
+        # Garante caminho absoluto correto
         if db_path:
             self.db_path = db_path
         else:
@@ -46,6 +46,22 @@ class DBManager:
     def _get_connection(self):
         return sqlite3.connect(self.db_path)
 
+    def clear_all_modules(self):
+        """
+        Limpa todos os módulos do banco de dados.
+        Útil para forçar uma ressincronização limpa e remover prompts antigos.
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("DELETE FROM modules")
+            conn.commit()
+            print("[DB] 🧹 Banco de dados limpo. Todos os módulos antigos foram removidos.")
+        except Exception as e:
+            print(f"[DB] Erro ao limpar módulos: {e}")
+        finally:
+            conn.close()
+
     def upsert_module(self, module_data: Dict[str, Any]):
         module_id = module_data.get('module_id')
         version = module_data.get('version')
@@ -59,6 +75,13 @@ class DBManager:
         conn = self._get_connection()
         cursor = conn.cursor()
         
+        # Verifica se já existe para logar aviso de atualização
+        cursor.execute('SELECT version FROM modules WHERE module_id = ?', (module_id,))
+        existing = cursor.fetchone()
+        
+        if existing and existing[0] != version:
+             print(f"[DB] ⚠️  Atualizando módulo '{module_id}': v{existing[0]} -> v{version}")
+
         cursor.execute('''
             INSERT INTO modules (module_id, version, module_type, encrypted_data, updated_at)
             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -71,7 +94,6 @@ class DBManager:
         
         conn.commit()
         conn.close()
-        # print(f"[DB] Módulo '{module_id}' (v{version}) sincronizado.") # Comentado para limpar log
 
     def get_module(self, module_id: str) -> Optional[Dict[str, Any]]:
         conn = self._get_connection()

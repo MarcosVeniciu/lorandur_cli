@@ -1,26 +1,33 @@
 import asyncio
 import logging
+import os
+import json
 from typing import Dict, Any, Optional
 
 from engine.module_executor import ModuleExecutor
 from database.db_manager import DBManager
 from utils.debug_logger import DebugLogger
+from utils.file_manager import FileManager
 
 class GameController:
     """
     Controlador principal do fluxo do jogo.
-    Adaptado para chamar o Executor de forma síncrona.
+    Gerencia o estado (game_state), orquestra os módulos e corrige inconsistências de dados.
     """
     
     def __init__(self):
         self.db_manager = DBManager()
         self.module_executor = ModuleExecutor()
+        self.file_manager = FileManager()
         self.logger = logging.getLogger("GameController")
         self.debug_logger = DebugLogger()
         
+        # Estado Inicial
         self.game_state = {
             "context": {
                 "genre": "",
+                "seeds": {},
+                "supported_scopes_str": "",
                 "available_locations_str": "",
                 "available_archetypes_str": "",
                 "runtime": {
@@ -43,6 +50,65 @@ class GameController:
         self.logger.info("Inicializando GameController...")
         pass
 
+    def start_new_game(self, scenario_name: str, seed_data: Dict[str, Any] = None):
+        """
+        Carrega o cenário e prepara o contexto inicial.
+        """
+        self.logger.info(f"Iniciando novo jogo: {scenario_name}")
+        
+        # 1. Carregar Cenário
+        # Assume que o FileManager sabe buscar na pasta scenarios
+        scenario_data = self.file_manager.load_json(f"{scenario_name}.json", subdir="scenarios")
+        
+        if not scenario_data:
+            # Fallback para tentar achar o arquivo direto se o nome for complexo
+            if os.path.exists(f"scenarios/{scenario_name}.json"):
+                with open(f"scenarios/{scenario_name}.json", 'r', encoding='utf-8') as f:
+                    scenario_data = json.load(f)
+            else:
+                raise FileNotFoundError(f"Cenário '{scenario_name}' não encontrado.")
+
+        # 2. Popula Contexto Básico
+        self.game_state["context"]["genre"] = scenario_data.get("genre", "Generic")
+        self.game_state["context"]["supported_scopes_str"] = "\n".join(scenario_data.get("supported_scopes", []))
+        
+        # Locais e Arquétipos do Cenário (Stringfy para o prompt)
+        locs = scenario_data.get("locations", [])
+        archs = scenario_data.get("archetypes", [])
+        self.game_state["context"]["available_locations_str"] = ", ".join(locs) if isinstance(locs, list) else str(locs)
+        self.game_state["context"]["available_archetypes_str"] = ", ".join(archs) if isinstance(archs, list) else str(archs)
+
+        # 3. Seeds (Sementes da Trama)
+        if seed_data:
+            self.game_state["context"]["seeds"] = seed_data
+        
+        self.logger.info("Contexto inicial configurado com sucesso.")
+
+    def step_generate_trama(self) -> Dict[str, Any]:
+        """
+        Executa o módulo de Trama e corrige dados para os próximos passos.
+        """
+        self.logger.info(">>> Gerando Trama...")
+        
+        trama_result = self.module_executor.execute(
+            "core_trama_generator", 
+            self.game_state
+        )
+        
+        if not trama_result:
+            raise Exception("Falha na geração da Trama.")
+
+        # === DATA PATCHING (Correção de Dados) ===
+        # O Step 2 espera 'escopo', mas a Trama gera 'escopo_selecionado'.
+        config = trama_result.get("configuracao_aventura", {})
+        if "escopo_selecionado" in config and "escopo" not in config:
+            config["escopo"] = config["escopo_selecionado"]
+        
+        self.set_trama_state(trama_result)
+        self.debug_logger.log_step("Trama Gerada", trama_result)
+        
+        return trama_result
+
     def update_context(self, context_data: Dict[str, Any]):
         for key, value in context_data.items():
             if key in self.game_state["context"]:
@@ -57,20 +123,36 @@ class GameController:
         self.game_state["adventure"]["trama"] = trama_data
         self.logger.info("Estado da Trama definido.")
 
+    def save_game(self, filename: str = None):
+        """Salva o estado atual."""
+        if not filename:
+            import time
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            filename = f"save_{timestamp}.json"
+        
+        self.file_manager.save_json(filename, self.game_state, subdir="saves")
+        print(f"[GameController] Jogo salvo em: saves/{filename}")
+
+    def load_game(self, filename: str):
+        data = self.file_manager.load_json(filename, subdir="saves")
+        if data:
+            self.game_state = data
+            print(f"[GameController] Jogo carregado: {filename}")
+        else:
+            print("[GameController] Erro ao carregar save.")
+
     async def generate_adventure_front_pipeline(self) -> Dict[str, Any]:
         """
         Executa o Pipeline de 3 Estágios para gerar a Frente de Aventura.
-        NOTA: O método é async para compatibilidade, mas as chamadas ao executor são síncronas.
         """
         self.logger.info("=== Iniciando Pipeline da Frente de Aventura ===")
         
         try:
             # -------------------------------------------------------
-            # STEP 1: ARQUÉTIPO
+            # STEP 1: ARQUÉTIPO & LOCAIS
             # -------------------------------------------------------
             self.logger.info(">>> Executando Step 1: Definição de Arquétipo...")
             
-            # MUDANÇA: Chamada direta sem await, método renomeado para 'execute'
             step1_result = self.module_executor.execute(
                 "step1_front_archetype", 
                 self.game_state
@@ -78,12 +160,19 @@ class GameController:
             
             if not step1_result:
                 raise Exception("Falha na execução do Step 1 (Arquétipo).")
-                
+
+            # === DATA PATCHING STEP 1 ===
+            # O Step 2 espera 'arquetipo_selecionado' no mapeamento 'step1_arquetipo',
+            # mas o Step 1 produz 'enredo_selecionado'. Vamos criar um alias.
+            cabecalho = step1_result.get("cabecalho", {})
+            if "enredo_selecionado" in cabecalho and "arquetipo_selecionado" not in cabecalho:
+                cabecalho["arquetipo_selecionado"] = cabecalho["enredo_selecionado"]
+            
             self.game_state["adventure"]["front"]["step1"] = step1_result
             self.debug_logger.log_step("Front Step 1", step1_result)
 
             # -------------------------------------------------------
-            # STEP 2: WORLDBUILDER
+            # STEP 2: WORLDBUILDER (AMEAÇAS)
             # -------------------------------------------------------
             self.logger.info(">>> Executando Step 2: Construção de Mundo...")
             step2_result = self.module_executor.execute(
@@ -98,7 +187,7 @@ class GameController:
             self.debug_logger.log_step("Front Step 2", step2_result)
 
             # -------------------------------------------------------
-            # STEP 3: STORYTELLER
+            # STEP 3: STORYTELLER (PRESSÁGIOS)
             # -------------------------------------------------------
             self.logger.info(">>> Executando Step 3: Criação de Presságios...")
             step3_result = self.module_executor.execute(

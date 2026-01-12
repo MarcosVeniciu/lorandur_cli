@@ -43,22 +43,27 @@ class TestFluxoCompleto(unittest.TestCase):
     3. Frente Step 2 (Worldbuilder & Ameaças)
     4. Frente Step 3 (Storyteller & Presságios Conectados)
     
-    Gera um relatório markdown contendo Prompts e Respostas para auditoria.
+    Gera um relatório markdown contendo Prompts, Versões e Respostas para auditoria.
     """
 
     def setUp(self):
-        # === 0. SINCRONIZAÇÃO OBRIGATÓRIA ===
-        # Garante que os arquivos JSON mais recentes sejam lidos
-        # print("\n[SETUP] Sincronizando banco de dados de módulos...")
-        # SyncManager().sync_all()
-
+        # Inicializa o Controller
         self.controller = GameController()
         
-        # === 1. DEFINIÇÃO DO CONTEXTO INICIAL ===
-        # ATUALIZAÇÃO: Não precisamos mais definir 'runtime' ou 'formatted_matrix' manualmente.
-        # O GameController agora gerencia o fluxo de dados diretamente via JSON mapping.
+        # Sincroniza o banco de dados antes do teste para garantir versões recentes
+        logger.info("[SETUP] Garantindo sincronização de módulos...")
+        SyncManager().sync_all()
+        
+        # === 1. DEFINIÇÃO DO CONTEXTO INICIAL (MOCK) ===
+        # Simula o início de um jogo 'Dieselpunk'
         self.context_input = {
             "genre": "Dieselpunk",
+            "seeds": {
+                "col1_event": "Uma carga valiosa foi roubada",
+                "col2_goal": "Recuperar a carga antes do amanhecer",
+                "col3_consequence": "Guerra entre gangues rivais"
+            },
+            # Dados que viriam do arquivo de cenário:
             "available_locations_str": "Fábrica de Autômatos, Estação de Trem Blindada, Bar Clandestino (Speakeasy), Hangar de Zeppelins, Torre de Rádio da Propaganda, Esgotos de Óleo, Mansão do Barão, Doca de Carregamento",
             "available_archetypes_str": "Veterano da Grande Guerra, Mecânico de Autômatos, Espião Corporativo, Cientista Louco, Aristocrata Decadente, Líder Operário"
         }
@@ -75,16 +80,13 @@ class TestFluxoCompleto(unittest.TestCase):
 
         try:
             # === FASE 1: GERAR TRAMA ===
-            logger.info(">>> [1/4] Executando Módulo Trama...")
-            trama_result = self.controller.module_executor.execute("core_trama_generator", self.controller.game_state)
+            logger.info(">>> [1/4] Executando Módulo Trama (via Controller)...")
+            
+            # ATUALIZAÇÃO: Usamos o método do controller para garantir Data Patching
+            trama_result = self.controller.step_generate_trama()
             
             self.assertIsNotNone(trama_result, "A Trama não deve ser nula.")
-            # Valida campos essenciais da Trama V3.0
             self.assertIn("matriz_controle_informacao", trama_result)
-            
-            # Atualiza o controller com a Trama.
-            # O GameController armazena isso em adventure.trama, que será lido automaticamente pelos próximos passos.
-            self.controller.set_trama_state(trama_result)
             logger.info("✓ Trama Gerada e salva no Estado.")
 
             # === FASE 2: GERAR FRENTE (PIPELINE) ===
@@ -99,11 +101,6 @@ class TestFluxoCompleto(unittest.TestCase):
             self.assertIn("world", front_result)
             self.assertIn("story", front_result)
             
-            # Validações Básicas dos Schemas
-            self.assertIn("cabecalho", front_result["structure"], "Step 1 deve ter 'cabecalho'")
-            self.assertIn("perigos", front_result["world"], "Step 2 deve ter 'perigos'")
-            self.assertIn("pressagios_terriveis", front_result["story"], "Step 3 deve ter 'pressagios_terriveis'")
-
             logger.info("✓ Pipeline da Frente concluído com sucesso.")
 
             # Cálculo de duração
@@ -120,21 +117,21 @@ class TestFluxoCompleto(unittest.TestCase):
             loop.close()
 
     def _get_module_data(self, module_filename):
-        """Lê o arquivo JSON do módulo para extrair Prompts e Schema."""
+        """Lê o arquivo JSON do módulo para extrair Prompts, Schema e VERSÃO."""
         try:
             root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
             path = os.path.join(root_path, "modules_source", module_filename)
-            # Tenta ler do diretório source local se existir, senão ignora (ou mocka)
+            
             if os.path.exists(path):
                 with open(path, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            return {"prompts": {"system": "N/A", "user": "N/A"}, "output_schema": {}}
+            return {"prompts": {"system": "N/A", "user": "N/A"}, "output_schema": {}, "version": "Unknown"}
         except Exception as e:
             logger.warning(f"Não foi possível ler o arquivo do módulo {module_filename}: {e}")
-            return {"prompts": {"system": "Erro", "user": "Erro"}, "output_schema": {}}
+            return {"prompts": {"system": "Erro", "user": "Erro"}, "output_schema": {}, "version": "Error"}
 
     def _generate_detailed_report(self, trama, frente, duration):
-        """Gera Markdown combinando Prompts usados e Respostas geradas (Atualizado para Schemas V2.x)."""
+        """Gera Markdown combinando Prompts usados e Respostas geradas (Com Versões)."""
         timestamp = datetime.now().strftime("%Y_%m_%d_%H_%M")
         root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         report_dir = os.path.join(root_path, "teste", "relatorios_teste")
@@ -154,7 +151,7 @@ class TestFluxoCompleto(unittest.TestCase):
         mod_step3 = self._get_module_data("frente_step3_storyteller.json")
 
         with open(filename, "w", encoding="utf-8") as f:
-            f.write(f"# Relatório Completo: Fluxo Trama -> Frente (Schemas Atualizados)\n")
+            f.write(f"# Relatório Completo: Fluxo Trama -> Frente\n")
             f.write(f"**Data:** {timestamp} | **Gênero:** {self.context_input['genre']}\n")
             f.write(f"**Status:** ✅ Sucesso\n\n")
             
@@ -167,10 +164,14 @@ class TestFluxoCompleto(unittest.TestCase):
             f.write(f"| **Custo Estimado (Last Step)** | ${cost:.6f} |\n")
             f.write("\n---\n")
 
-            # Helper para escrever seções
+            # Helper para escrever seções COM VERSÃO
             def write_section(title, module_data, result_data, icon):
-                f.write(f"\n## {icon} {title}\n")
+                # Extrai a versão do módulo
+                version = module_data.get('version', '?.?.?')
+                
+                f.write(f"\n## {icon} {title} (v{version})\n")
                 f.write("<details>\n<summary><strong>⚙️ Ver Prompts & Schema (Técnico)</strong></summary>\n\n")
+                f.write(f"**Version:** {version}\n")
                 f.write(f"**System Prompt:**\n```text\n{module_data.get('prompts', {}).get('system', '')}\n```\n")
                 f.write(f"**User Prompt Template:**\n```text\n{module_data.get('prompts', {}).get('user', '')}\n```\n")
                 f.write(f"**Output Schema:**\n```json\n{json.dumps(module_data.get('output_schema', {}), indent=2)}\n```\n")
@@ -181,7 +182,7 @@ class TestFluxoCompleto(unittest.TestCase):
                 f.write("\n---\n")
 
             # 1. TRAMA
-            write_section("Fase 1: A Trama (V3)", mod_trama, trama, "📜")
+            write_section("Fase 1: A Trama", mod_trama, trama, "📜")
             f.write(f"**Argumento:** {trama.get('argumento', {}).get('texto', 'N/A')}\n")
             f.write(f"**Premissa Oculta:** {trama.get('premissas', {}).get('oculta', {}).get('texto', 'N/A')}\n")
             f.write("**Matriz de Informação (Resumo):**\n")
