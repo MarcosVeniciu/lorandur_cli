@@ -1,128 +1,87 @@
+import unittest
+import time
 import sys
 import os
-import time
-import json
 
-base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(base_path)
+# Adiciona o diretório pai ao path para importação correta
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from game_controller import GameController
-from engine.sync_manager import SyncManager
+# Importa a base que você acabou de fornecer
+from base_test import BaseFlowTest
 
-def calculate_cost(usage_dict):
-    """
-    Calcula custo estimado para Gemini 2.0 Flash (Preview/Free por enquanto).
-    """
-    if not usage_dict:
-        return 0.0
-    
-    prompt_tokens = usage_dict.get('prompt_tokens', 0)
-    completion_tokens = usage_dict.get('completion_tokens', 0)
-    
-    # Preços por 1 Milhão de tokens (Referência)
-    price_input = 0.10 
-    price_output = 0.40
-    
-    cost = (prompt_tokens / 1_000_000 * price_input) + (completion_tokens / 1_000_000 * price_output)
-    return cost
+class TestFluxoTrama(BaseFlowTest):
 
-def testar_geracao_trama():
-    print(">>> INICIANDO TESTE DE INTEGRAÇÃO: TRAMA (V5 - Schema V3.0) <<<")
-    
-    SyncManager().sync_all()
-    controller = GameController()
-    
-    seeds_teste = {
-        "col1_event": "Uma carga valiosa foi roubada",
-        "col2_goal": "Recuperar a carga antes do amanhecer",
-        "col3_consequence": "Guerra entre gangues rivais"
-    }
-
-    # Verifica cenário
-    scenario_path = os.path.join(base_path, "scenarios", "dieselpunk_2.0.json")
-    if not os.path.exists(scenario_path):
-        scenario_path = os.path.join(base_path, "scenarios", "dieselpunk.json")
-
-    controller.start_new_game("dieselpunk", seed_data=seeds_teste)
-
-    print("[TESTE] Solicitando geração à IA...")
-    start_time = time.time()
-    trama_result = controller.step_generate_trama()
-    duration = time.time() - start_time
-
-    # Debug e Métricas
-    debug_data = controller.executor.last_prompt_debug
-    usage = debug_data.get('usage', {})
-    cost = calculate_cost(usage)
-    finish_reason = debug_data.get('finish_reason', 'Unknown')
-    schema_sent = debug_data.get('schema', {}) # Pega o schema do debug
-
-    timestamp = time.strftime("%Y_%m_%d_%H_%M")
-    report_file = os.path.join(base_path, "teste", "relatorios_teste", f"test_fluxo_trama_{timestamp}.md")
-    os.makedirs(os.path.dirname(report_file), exist_ok=True)
-
-    with open(report_file, 'w', encoding='utf-8') as f:
-        f.write(f"# Relatório de Teste: Fluxo de Trama V5\n")
-        f.write(f"**Data:** {timestamp}\n")
+    def setUp(self):
+        """
+        Configuração do teste:
+        Inicializa o controlador e carrega um cenário com Seeds fixas para reprodutibilidade.
+        """
+        super().setUp()
         
-        # --- BLOCO DE MÉTRICAS ---
-        f.write("\n## 📊 Métricas de Execução\n")
-        f.write("| Métrica | Valor |\n")
-        f.write("| :--- | :--- |\n")
-        f.write(f"| **Tempo Total** | {duration:.2f}s |\n")
-        f.write(f"| **Tokens Entrada** | {usage.get('prompt_tokens', 0)} |\n")
-        f.write(f"| **Tokens Saída** | {usage.get('completion_tokens', 0)} |\n")
-        f.write(f"| **Tokens Total** | {usage.get('total_tokens', 0)} |\n")
-        f.write(f"| **Custo Estimado** | ${cost:.6f} |\n")
-        f.write(f"| **Stop Reason** | {finish_reason} |\n\n")
-
-        f.write(f"**Módulo:** {debug_data.get('module_id', 'Unknown')}\n\n")
+        # Seeds mockadas para garantir consistência no teste
+        self.seeds_mock = {
+            "col1_event": "Uma transmissão fantasma foi captada",
+            "col2_goal": "Decifrar o código antes da invasão",
+            "col3_consequence": "A cidade será bombardeada"
+        }
         
-        f.write("## 1. Contexto Enviado\n")
-        f.write("### System Prompt\n")
-        f.write(f"```text\n{debug_data.get('system', 'N/A')}\n```\n\n")
+        print(f"[SETUP] Iniciando jogo 'dieselpunk' para teste de Trama...")
+        try:
+            self.controller.start_new_game("dieselpunk", seed_data=self.seeds_mock)
+        except FileNotFoundError:
+            # Fallback caso o script seja rodado de um diretório diferente
+            self.controller.start_new_game("scenarios/dieselpunk", seed_data=self.seeds_mock)
+
+    def test_geracao_trama_validacao_schema(self):
+        """
+        Teste focado na geração da Trama e validação rigorosa dos campos novos
+        (especialmente a mudança de 'escopo_selecionado' para 'escopo').
+        """
+        print(">>> INICIANDO TESTE: GERAÇÃO DE TRAMA (Schema V4) <<<")
+
+        start = time.time()
         
-        f.write("### User Prompt\n")
-        f.write(f"```text\n{debug_data.get('user', 'N/A')}\n```\n\n")
+        # 1. Execução
+        trama_result = self.controller.step_generate_trama()
+        duration = time.time() - start
+
+        # 2. Coleta de Debug para Relatório
+        # Pega os dados técnicos do executor
+        debug_data = self.controller.module_executor.last_prompt_debug.copy() if self.controller.module_executor.last_prompt_debug else {}
         
-        # --- NOVO BLOCO: SCHEMA JSON ---
-        if schema_sent:
-            f.write("### Output Schema (Enviado)\n")
-            f.write("Este é o schema estrito que o modelo deve seguir:\n")
-            f.write(f"```json\n{json.dumps(schema_sent, indent=2, ensure_ascii=False)}\n```\n\n")
-        # -------------------------------
+        # [CORREÇÃO] Injeta a resposta dentro do debug_data para ser lida pelo base_test.py
+        debug_data['response_content'] = trama_result
+        
+        # 3. Rastreamento (Métricas + Resposta)
+        self.track_step("1. Core Trama Generator", duration, debug_data=debug_data)
 
-        if trama_result:
-            f.write("## 2. Resposta Recebida (Output JSON)\n")
-            f.write(f"```json\n{json.dumps(trama_result, indent=2, ensure_ascii=False)}\n```\n\n")
-            
-            # Adaptação Schema V3.0
-            config = trama_result.get('configuracao_aventura', {})
-            premissas = trama_result.get('premissas', {})
-            matriz = trama_result.get('matriz_controle_informacao', {}).get('itens', [])
-            
-            escopo = config.get('escopo_selecionado', 'N/A')
-            subgeneros = ", ".join(config.get('subgeneros_selecionados', []))
-            
-            evidente_txt = premissas.get('evidente', {}).get('texto', 'N/A')
-            oculta_txt = premissas.get('oculta', {}).get('texto', 'N/A')
-            
-            f.write("### 3. Análise Rápida (Schema V3.0)\n")
-            f.write(f"- **Escopo:** {escopo}\n")
-            f.write(f"- **Subgêneros:** {subgeneros}\n")
-            f.write(f"- **Premissa Evidente:** {evidente_txt}\n")
-            f.write(f"- **Premissa Oculta:** {oculta_txt}\n")
-            
-            if matriz:
-                f.write("\n#### Matriz de Informação (Item 1):\n")
-                item1 = matriz[0]
-                f.write(f"- **{item1.get('titulo')}:** {item1.get('a_expectativa')} -> *{item1.get('a_verdade')}*\n")
+        # 4. Validações (Assertions)
+        self.assertIsNotNone(trama_result, "A Trama retornou None (falha na geração).")
+        
+        # Validação da Estrutura Principal
+        self.assertIn("configuracao_aventura", trama_result)
+        self.assertIn("argumento", trama_result)
+        self.assertIn("matriz_controle_informacao", trama_result)
 
-        else:
-            f.write("## ❌ Status: FALHA\n")
-            f.write("O controller retornou None. Verifique os logs.\n")
+        # === VALIDAÇÃO CRÍTICA DO ESCOPO ===
+        config = trama_result["configuracao_aventura"]
+        
+        # Verifica se o campo NOVO existe (se você atualizou o trama.json)
+        self.assertIn("escopo", config, 
+            "ERRO: O campo 'escopo' não foi encontrado. Verifique se o trama.json foi atualizado para 'escopo'.")
+        
+        # Verifica se o campo ANTIGO foi removido
+        self.assertNotIn("escopo_selecionado", config, 
+            "ERRO: O campo 'escopo_selecionado' ainda existe. O Schema não está rejeitando propriedades adicionais.")
 
-    print(f"\n>>> Teste finalizado. Relatório salvo em: {report_file}")
+        # Validação de Conteúdo (Sanity Check)
+        self.assertTrue(len(config["subgeneros_selecionados"]) >= 1)
+        self.assertTrue(len(trama_result["matriz_controle_informacao"]["itens"]) >= 3)
+
+        print("[OK] Validação de Schema (Escopo) aprovada.")
+
+        # 5. Geração do Relatório
+        self.generate_report(title="Teste de Unidade: Trama Generator (V4.0 - Schema Strict)")
 
 if __name__ == "__main__":
-    testar_geracao_trama()
+    unittest.main()

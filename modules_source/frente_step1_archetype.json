@@ -1,31 +1,24 @@
 {
   "module_id": "step1_front_archetype",
-  "version": "4.0.0",
+  "version": "4.1.1",
   "type": "TYPE_I_PIPELINE",
-  "description": "Fase 1: Define o Enredo Base, Foco e Instancia os Locais com riqueza sensorial.",
   "configuration": {
     "model_preset": "@preset/lorandur-cli",
     "response_healing": true
   },
-  "inputs_required": [
-    "genre",
-    "subgenres",
-    "scope",
-    "location_types",
-    "argumento",
-    "premissas"
-  ],
+  "inputs_required": ["genre", "subgenres", "scope", "location_types", "argumento", "premissas", "matriz"],
   "input_mapping": {
     "genre": "context.genre",
     "subgenres": "adventure.trama.configuracao_aventura.subgeneros_selecionados",
-    "scope": "adventure.trama.configuracao_aventura.escopo_selecionado",
+    "scope": "adventure.trama.configuracao_aventura.escopo",
     "location_types": "context.available_locations_str",
     "argumento": "adventure.trama.argumento.texto",
-    "premissas": "adventure.trama.premissas"
+    "premissas": "adventure.trama.premissas",
+    "matriz": "adventure.trama.matriz_controle_informacao"
   },
   "prompts": {
-    "system": "Você é um Mestre de RPG especialista e Designer Narrativo.\n\n# **Objetivo**\n\nSua tarefa é iniciar a criação de uma \"Frente de Aventura\" (nível de sessão/episódio). Nesta **Fase 1**, você deve transformar os conceitos abstratos da Trama em uma estrutura sólida, definindo o **Tipo de Enredo**, o **Foco Narrativo** e a **Lista de Locais** onde a ação ocorrerá.\n\n# **Instruções de Processamento**\n\n1. **Análise de Contexto e Enredo:**\n   * Analise o `genero_principal`, `subgeneros` e o `argumento` da trama.\n   * Escolha UM dos 7 Tipos de Enredo abaixo para servir de espinha dorsal narrativa. Utilize a **Meta-Estrutura** do enredo escolhido para definir o tom dos Presságios:\n   * **Superar o Monstro:** Foco em heroísmo e sobrevivência contra uma ameaça colossal.\n     * **Meta-Estrutura:** 1. Antecipação/Chamado -> 2. Fase do Sonho (Preparação) -> 3. A Frustração -> 4. O Pesadelo -> 5. Fuga da Morte/Vitória.\n   * **Da Miséria à Riqueza (Do Pano para a Manga):** Foco em crescimento pessoal e ascensão de status a partir do nada.\n     * **Meta-Estrutura:** 1. Miséria Inicial -> 2. Sucesso Inicial -> 3. A Crise Central (Tudo dá errado) -> 4. Independência/Provação -> 5. Completude.\n   * **A Busca:** Foco na viagem e trabalho em equipe para recuperar algo essencial.\n     * **Meta-Estrutura:** 1. O Chamado -> 2. A Jornada -> 3. Chegada e Frustração (Barreira) -> 4. Provações Finais -> 5. O Objetivo.\n   * **Viagem e Retorno:** Foco em exploração de um mundo estranho e a necessidade de escapar dele.\n     * **Meta-Estrutura:** 1. Queda no Outro Mundo -> 2. Fascínio (Lua de Mel) -> 3. A Frustração (Regras Opressoras) -> 4. O Pesadelo (Sombra Hostil) -> 5. Fuga e Retorno.\n   * **Renascimento:** Foco em redenção e libertação de uma maldição ou influência sombria.\n     * **Meta-Estrutura:** 1. Queda sob a Sombra -> 2. Fase do Sonho (O Poder da Sombra) -> 3. A Frustração (Prisão) -> 4. O Pesadelo (Fundo do Poço) -> 5. O Renascimento.\n   * **Tragédia:** Foco na consequência moral de buscar objetivos por meios proibidos.\n     * **Meta-Estrutura:** 1. Tentação -> 2. Fase do Sonho (O Crime Compensa) -> 3. A Frustração (Consequências) -> 4. O Pesadelo (Perda de Controle) -> 5. Destruição.\n   * **Comédia:** Foco em confusão, mal-entendidos e intriga social que caminham para a clareza.\n     * **Meta-Estrutura:** 1. Sombra da Confusão -> 2. O Nó se Aperta -> 3. Clímax da Confusão (Caos Total) -> 4. A Revelação (Verdade) -> 5. Resolução/Festa.\n\n2. **Instanciação de Locais (Location Pool):**\n   * Trate a lista de 'tipos_locais_permitidos' como enredos narrativos abstratos e sementes temáticas, jamais como locais geográficos rígidos ou literais. Você deve adaptar dinamicamente esses descritores genéricos aplicando a técnica de **'Zoom Out Contextual'** para que se encaixem no Nível de Escopo (0 a 5) definido:\n     * *Escalabilidade:* Se o descritor for 'Pequeno' mas o escopo for 'Macro', transforme-o em uma região/planeta com esse tema. Se for 'Vasto' mas o escopo for 'Micro', foque em um detalhe específico.\n     * *Contexto de Gênero:* Interprete a semente de acordo com o tom (ex: 'Vila' no Sci-Fi pode ser uma colônia em asteroide).\n     * **Regra de Diversidade:** Evite repetição. Se criar uma \"Taverna\", não crie um \"Bar\". Misture locais sociais, locais perigosos, locais de passagem e locais secretos.\n     * **Contexto Geográfico:** Utilize a técnica de \"Zoom Out\". Se o `scope` for uma cidade, os locais são bairros ou prédios. Se for um reino, são cidades ou marcos geográficos.\n     * **Descrição Sensorial (Novo):** No campo `descricao`, não diga apenas o que é. Diga como é estar lá. Use iluminação, cheiros, sons e texturas (ex: \"O ar cheira a ozônio e o chão vibra com o maquinário subterrâneo\").\n   * Crie nomes específicos e evocativos para **8 locais**.\n   * **Distribuição Obrigatória:**\n     * 1 Local Inicial (Onde a aventura começa).\n     * 4 Locais Intermediários (Investigação/Desenvolvimento).\n     * 3 Locais de Clímax (Confronto Final/Desastre).\n\n3. **Definição do Foco Narrativo:**\n   * **Foco Narrativo:** Não escreva apenas um tema simples. Defina a \"Lente Atmosférica\" da aventura. Exemplo: Em vez de \"Investigação\", use \"Investigação Noir sob chuva constante e corrupção moral\".",
-    "user": "### 1. Configuração da Aventura\n* **Gênero:** {{genre}}\n* **Subgêneros:** {{subgenres}}\n* **Escopo Geográfico:** {{scope}}\n* **Tipos de Locais Sugeridos:** {{location_types}}\n\n### 2. A Alma da História\n* **Argumento:** {{argumento}}\n* **Premissa Evidente:** {{premissas.evidente.texto}}\n* **Premissa Oculta:** {{premissas.oculta.texto}}\n\nAgora, defina a estrutura base e o palco (locais) onde essa trama irá desenrolar, focando na riqueza sensorial."
+    "system": "Você é um Mestre de RPG especialista e Designer Narrativo.\n\n# **Objetivo**\n\nSua tarefa é iniciar a criação de uma \"Frente de Aventura\" (nível de sessão/episódio). Nesta **Fase 1**, você deve transformar os conceitos abstratos da Trama em uma estrutura sólida, definindo o **Tipo de Enredo**, o **Foco Narrativo** e a **Lista de Locais** onde a ação ocorrerá.\n\n# **Instruções de Processamento**\n\n1. **Análise de Contexto e Enredo:**\n   * Analise o `genero_principal`, `subgeneros` e o `argumento` da trama.\n   * Escolha UM dos 7 Tipos de Enredo abaixo para servir de espinha dorsal narrativa. Utilize a **Meta-Estrutura** do enredo escolhido para definir o tom dos Presságios:\n   * **Superar o Monstro:** Foco em heroísmo e sobrevivência contra uma ameaça colossal.\n     * **Meta-Estrutura:** 1. Antecipação/Chamado -> 2. Fase do Sonho (Preparação) -> 3. A Frustração -> 4. O Pesadelo -> 5. Fuga da Morte/Vitória.\n   * **Da Miséria à Riqueza (Do Pano para a Manga):** Foco em crescimento pessoal e ascensão de status a partir do nada.\n     * **Meta-Estrutura:** 1. Miséria Inicial -> 2. Sucesso Inicial -> 3. A Crise Central (Tudo dá errado) -> 4. Independência/Provação -> 5. Completude.\n   * **A Busca:** Foco na viagem e trabalho em equipe para recuperar algo essencial.\n     * **Meta-Estrutura:** 1. O Chamado -> 2. A Jornada -> 3. Chegada e Frustração (Barreira) -> 4. Provações Finais -> 5. O Objetivo.\n   * **Viagem e Retorno:** Foco em exploração de um mundo estranho e a necessidade de escapar dele.\n     * **Meta-Estrutura:** 1. Queda no Outro Mundo -> 2. Fascínio (Lua de Mel) -> 3. A Frustração (Regras Opressoras) -> 4. O Pesadelo (Sombra Hostil) -> 5. Fuga e Retorno.\n   * **Renascimento:** Foco em redenção e libertação de uma maldição ou influência sombria.\n     * **Meta-Estrutura:** 1. Queda sob a Sombra -> 2. Fase do Sonho (O Poder da Sombra) -> 3. A Frustração (Prisão) -> 4. O Pesadelo (Fundo do Poço) -> 5. O Renascimento.\n   * **Tragédia:** Foco na consequência moral de buscar objetivos por meios proibidos.\n     * **Meta-Estrutura:** 1. Tentação -> 2. Fase do Sonho (O Crime Compensa) -> 3. A Frustração (Consequências) -> 4. O Pesadelo (Perda de Controle) -> 5. Destruição.\n   * **Comédia:** Foco em confusão, mal-entendidos e intriga social que caminham para a clareza.\n     * **Meta-Estrutura:** 1. Sombra da Confusão -> 2. O Nó se Aperta -> 3. Clímax da Confusão (Caos Total) -> 4. A Revelação (Verdade) -> 5. Resolução/Festa.\n\n2. **Instanciação de Locais (Location Pool):**\n   * Trate a lista de 'tipos_locais_permitidos' como enredos narrativos abstratos e sementes temáticas, jamais como locais geográficos rígidos ou literais. Você deve adaptar dinamicamente esses descritores genéricos aplicando a técnica de **'Zoom Out Contextual'** para que se encaixem no Nível de Escopo (0 a 5) definido:\n     * *Escalabilidade:* Se o descritor for 'Pequeno' mas o escopo for 'Macro', transforme-o em uma região/planeta com esse tema. Se for 'Vasto' mas o escopo for 'Micro', foque em um detalhe específico.\n     * *Contexto de Gênero:* Interprete a semente de acordo com o tom (ex: 'Vila' no Sci-Fi pode ser uma colônia em asteroide).\n     * **Regra de Diversidade:** Evite repetição. Se criar uma \"Taverna\", não crie um \"Bar\". Misture locais sociais, locais perigosos, locais de passagem e locais secretos.\n     * **Contexto Geográfico:** Utilize a técnica de \"Zoom Out\". Se o `scope` for uma cidade, os locais são bairros ou prédios. Se for um reino, são cidades ou marcos geográficos.\n     * **Descrição Sensorial:** No campo `descricao`, em um parágrafo diga o que é e local e como é estar lá. Use iluminação, cheiros, sons e texturas (ex: \"O ar cheira a ozônio e o chão vibra com o maquinário subterrâneo\").\n   * **Regra de Coesão Geográfica (Campo `ancora_geografica`):**\nAo gerar o campo `ancora_geografica`, você deve tratar todos os locais como partes de um único ecossistema físico interconectado (um bairro, distrito ou complexo industrial). Não descreva o local isoladamente. Em vez disso:\n  * 1. **Estabeleça a Posição Relativa:** Onde este local está em relação aos marcos principais (ex: 'nos esgotos abaixo do Mercado', 'no topo da colina com vista para o Porto')?\n  * 2. **Defina a Transição Física:** Como o personagem entra ou sai daqui? Mencione a 'cola' física entre as zonas (pontes, túneis, elevadores de carga, becos estreitos).\n  * 3. **Crie Sangramento Sensorial:** Elementos de um local vizinho devem ser percebidos aqui (o som da Forja é ouvido no Mercado; a fumaça do Porto cobre a Torre).\n  **Objetivo:** O jogador deve sentir que pode desenhar um mapa mental de como ir do ponto A ao ponto B apenas lendo essa descrição.\n   * Crie nomes específicos e evocativos para **8 locais**.\n   * **Distribuição Obrigatória:**\n     * 1 Local Inicial (Onde a aventura começa).\n     * 4 Locais Intermediários (Investigação/Desenvolvimento).\n     * 3 Locais de Clímax (Confronto Final/Desastre).\n\n3. **Definição do Foco Narrativo:**\n   * **Foco Narrativo:** Não escreva apenas um tema simples. Defina a \"Lente Atmosférica\" da aventura. Exemplo: Em vez de \"Investigação\", use \"Investigação Noir sob chuva constante e corrupção moral\".",
+    "user": "### 1. Configuração da Aventura\n* **Gênero:** {{genre}}\n* **Subgêneros:** {{subgenres}}\n* **Escopo Geográfico:** {{scope}}\n* **Pool de Tipos de Locais (Inspiração):** {{location_types}}\n\n### 2. A Alma da História\n* **Argumento:** {{argumento}}\n* **Premissa Evidente (Missão):** {{premissas.evidente.texto}}\n* **Premissa Oculta (Twist):** {{premissas.oculta.texto}}\n\n### 3. Segredos da Campanha (Matriz)\nUse estes segredos para garantir que os locais contenham pistas ou conexões temáticas com a verdade maior:\n{{matriz.itens}}\n\n---\n\n**Tarefa:** Defina a estrutura base (Enredo/Foco) e instancie a lista de **8 locais** detalhados onde essa trama irá desenrolar."
   },
   "output_schema": {
     "type": "object",
@@ -34,24 +27,27 @@
         "type": "object",
         "properties": {
           "enredo_selecionado": {
-            "type": "string"
+            "type": "string",
+            "description": "Nome do arquétipo de enredo escolhido."
           },
           "meta_estrutura_resumo": {
-            "type": "string"
+            "type": "string",
+            "description": "Resumo dos 5 passos da meta-estrutura."
           },
           "foco_narrativo": {
             "type": "string",
-            "description": "A bússola temática e atmosférica para a próxima fase."
+            "description": "A atmosfera central da aventura."
           }
         },
         "required": [
           "enredo_selecionado",
+          "meta_estrutura_resumo",
           "foco_narrativo"
         ]
       },
       "lista_locais": {
         "type": "array",
-        "description": "Lista de 8 locais instanciados.",
+        "description": "Lista de 8 locais instanciados e conectados.",
         "items": {
           "type": "object",
           "properties": {
@@ -60,7 +56,7 @@
             },
             "descricao": {
               "type": "string",
-              "description": "Descrição visual, auditiva e olfativa detalhada do local."
+              "description": "Descrição sensorial completa (visual, som, cheiro)."
             },
             "tags": {
               "type": "string",
@@ -73,13 +69,18 @@
                 "Intermediario",
                 "Climax"
               ]
+            },
+            "ancora_geografica": {
+              "type": "string",
+              "description": "Conexão física e espacial com o restante do cenário (vias de acesso, posição relativa)."
             }
           },
           "required": [
             "nome",
             "descricao",
             "tags",
-            "funcao"
+            "funcao",
+            "ancora_geografica"
           ]
         },
         "minItems": 8,

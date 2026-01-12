@@ -123,15 +123,47 @@ class ModuleExecutor:
     def _render_text(self, text: str, context: Dict[str, Any]) -> str:
         def replace_match(match):
             variable_path = match.group(1)
+            
+            # Busca o valor no contexto
             if variable_path in context:
                 val = context[variable_path]
             else:
                 val = self._get_nested_value(context, variable_path)
+            
+            # --- LÓGICA DE FORMATAÇÃO MELHORADA ---
             if isinstance(val, list):
-                return ", ".join(str(x) for x in val)
-            return str(val) if val is not None else "[N/A]"
-        return self._var_pattern.sub(replace_match, text)
+                if not val:
+                    return ""
+                
+                # Caso 1: Lista de Dicionários (ex: Locais, Elenco)
+                # Formata como blocos de texto legíveis para o LLM
+                if isinstance(val[0], dict):
+                    formatted_items = []
+                    for item in val:
+                        # Cria linhas: "  * Chave: Valor"
+                        lines = []
+                        # Prioriza o 'nome' se existir para ser o cabeçalho
+                        if 'nome' in item:
+                            lines.append(f"> **{item['nome']}**")
+                        
+                        for k, v in item.items():
+                            if k == 'nome': continue # Já usado no cabeçalho
+                            # Limpa chaves técnicas se necessário ou formata bonito
+                            clean_key = k.replace('_', ' ').capitalize()
+                            lines.append(f"  - {clean_key}: {v}")
+                        
+                        formatted_items.append("\n".join(lines))
+                    
+                    # Junta os itens com quebra de linha dupla
+                    return "\n\n".join(formatted_items)
 
+                # Caso 2: Lista Simples (Strings, Ints)
+                return ", ".join(str(x) for x in val)
+            
+            return str(val) if val is not None else "[N/A]"
+            # ---------------------------------------
+
+        return self._var_pattern.sub(replace_match, text)
     def _process_injections(self, rules: List[Dict], game_state: Dict) -> List[str]:
         active = []
         for rule in rules:

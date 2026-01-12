@@ -104,16 +104,27 @@
     ]
   },
   "locations": [
-    "A Cidadela de Ferro",
-    "O Deserto de Sal",
-    "A Rodovia Infinita",
-    "O Oásis Tóxico",
-    "As Ruínas da Velha Capital"
+    "Arena de Lutas",
+    "Ferro velho",
+    "Fila da ração",
+    "Armazém de comida",
+    "Mercado de pulgas",
+    "Bar movimentado",
+    "Mansão de um senhor de armas",
+    "Festival de Música",
+    "Torre de Vigia",
+    "Pista de Obstáculos",
+    "Escombros",
+    "Oficina de carros",
+    "Laboratório de química",
+    "Ferro Velho"
   ],
   "archetypes": [
-    "Motorista",
-    "Mecânico",
-    "Guerreiro da Estrada",
-    "Imperator"
+    "Músculo: Você é grande, pesado. Machucar e fazer façanhas físicas é com você.",
+    "Cabeça: Pensamento ágil, consegue operar sistemas e máquinas antigas.",
+    "Volante: Atrás de um volante, não há igual. Você é uma fera das estradas.",
+    "Vigia: Olhos atentos e sempre no horizonte. Consegue atirar muito bem.",
+    "Boca: Sempre sabe o que dizer. Carisma em pessoa. Mesmo que isso traga problemas.",
+    "Novato: Nunca conheceu um mundo que não esse. Quer provar seu valor para os seus."
   ]
 }

@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import json
+import time
 from typing import Dict, Any, Optional
 
 from engine.module_executor import ModuleExecutor
@@ -35,14 +36,23 @@ class GameController:
                     "formatted_matrix": ""
                 }
             },
-            "adventure": {
-                "trama": {},
-                "front": {
-                    "step1": {},  # Archetype
-                    "step2": {},  # Worldbuilder
-                    "step3": {},  # Storyteller
-                    "status": "pending"
-                }
+            "adventure": {} # Será populado/resetado no start_new_game
+        }
+        # Garante estrutura limpa na inicialização
+        self._reset_adventure_state()
+
+    def _reset_adventure_state(self):
+        """
+        Reseta a estrutura de aventura para evitar contaminação de dados
+        entre sessões de jogo diferentes na mesma instância.
+        """
+        self.game_state["adventure"] = {
+            "trama": {},
+            "front": {
+                "step1": {},  # Archetype
+                "step2": {},  # Worldbuilder
+                "step3": {},  # Storyteller
+                "status": "pending"
             }
         }
 
@@ -56,7 +66,10 @@ class GameController:
         """
         self.logger.info(f"Iniciando novo jogo: {scenario_name}")
         
-        # 1. Carregar Cenário
+        # 1. Limpeza de Estado Anterior (CRÍTICO)
+        self._reset_adventure_state()
+        
+        # 2. Carregar Cenário
         # Assume que o FileManager sabe buscar na pasta scenarios
         scenario_data = self.file_manager.load_json(f"{scenario_name}.json", subdir="scenarios")
         
@@ -68,7 +81,7 @@ class GameController:
             else:
                 raise FileNotFoundError(f"Cenário '{scenario_name}' não encontrado.")
 
-        # 2. Popula Contexto Básico
+        # 3. Popula Contexto Básico
         self.game_state["context"]["genre"] = scenario_data.get("genre", "Generic")
         self.game_state["context"]["supported_scopes_str"] = "\n".join(scenario_data.get("supported_scopes", []))
         
@@ -78,7 +91,7 @@ class GameController:
         self.game_state["context"]["available_locations_str"] = ", ".join(locs) if isinstance(locs, list) else str(locs)
         self.game_state["context"]["available_archetypes_str"] = ", ".join(archs) if isinstance(archs, list) else str(archs)
 
-        # 3. Seeds (Sementes da Trama)
+        # 4. Seeds (Sementes da Trama)
         if seed_data:
             self.game_state["context"]["seeds"] = seed_data
         
@@ -97,12 +110,6 @@ class GameController:
         
         if not trama_result:
             raise Exception("Falha na geração da Trama.")
-
-        # === DATA PATCHING (Correção de Dados) ===
-        # O Step 2 espera 'escopo', mas a Trama gera 'escopo_selecionado'.
-        config = trama_result.get("configuracao_aventura", {})
-        if "escopo_selecionado" in config and "escopo" not in config:
-            config["escopo"] = config["escopo_selecionado"]
         
         self.set_trama_state(trama_result)
         self.debug_logger.log_step("Trama Gerada", trama_result)
@@ -126,9 +133,11 @@ class GameController:
     def save_game(self, filename: str = None):
         """Salva o estado atual."""
         if not filename:
-            import time
             timestamp = time.strftime("%Y%m%d_%H%M%S")
             filename = f"save_{timestamp}.json"
+        
+        # Garante que o diretório existe (Segurança)
+        os.makedirs("saves", exist_ok=True)
         
         self.file_manager.save_json(filename, self.game_state, subdir="saves")
         print(f"[GameController] Jogo salvo em: saves/{filename}")
@@ -148,6 +157,11 @@ class GameController:
         self.logger.info("=== Iniciando Pipeline da Frente de Aventura ===")
         
         try:
+            # Inicialização defensiva para garantir que 'front' existe
+            self.game_state["adventure"].setdefault("front", {
+                "step1": {}, "step2": {}, "step3": {}, "status": "pending"
+            })
+
             # -------------------------------------------------------
             # STEP 1: ARQUÉTIPO & LOCAIS
             # -------------------------------------------------------
@@ -160,13 +174,6 @@ class GameController:
             
             if not step1_result:
                 raise Exception("Falha na execução do Step 1 (Arquétipo).")
-
-            # === DATA PATCHING STEP 1 ===
-            # O Step 2 espera 'arquetipo_selecionado' no mapeamento 'step1_arquetipo',
-            # mas o Step 1 produz 'enredo_selecionado'. Vamos criar um alias.
-            cabecalho = step1_result.get("cabecalho", {})
-            if "enredo_selecionado" in cabecalho and "arquetipo_selecionado" not in cabecalho:
-                cabecalho["arquetipo_selecionado"] = cabecalho["enredo_selecionado"]
             
             self.game_state["adventure"]["front"]["step1"] = step1_result
             self.debug_logger.log_step("Front Step 1", step1_result)
@@ -212,7 +219,9 @@ class GameController:
 
         except Exception as e:
             self.logger.error(f"Erro crítico no Pipeline da Frente: {e}")
-            self.game_state["adventure"]["front"]["status"] = "error"
+            # Garante que 'front' existe antes de setar o status
+            if "front" in self.game_state["adventure"]:
+                self.game_state["adventure"]["front"]["status"] = "error"
             raise e
 
     def get_full_state(self) -> Dict[str, Any]:

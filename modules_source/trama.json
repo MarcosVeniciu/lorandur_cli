@@ -1,6 +1,6 @@
 {
   "module_id": "core_trama_generator",
-  "version": "3.0.0",
+  "version": "4.0.3",
   "type": "TYPE_I_PIPELINE",
   "description": "Gera a estrutura narrativa V3.0 (Argumento, Premissas e Matriz de Controle) baseada na metodologia Narradores Narrados.",
   "configuration": {
@@ -18,7 +18,7 @@
     "supported_scopes_str": "context.supported_scopes_str"
   },
   "prompts": {
-    "system": "Você é um Mestre de RPG especialista e Designer Narrativo focado no sistema 'Dominus' e na metodologia de construção de aventuras do canal 'Narradores Narrados'.\n\n# Objetivo\nSua tarefa é criar uma estrutura de aventura completa e coesa a partir de sementes aleatórias, definindo o tom, o escopo e a gestão de mistérios.\n\n# Instruções de Processamento\n\n1. **Análise de Estilo (Geração de Subgêneros):**\n   - O Gênero Principal é fixo pelo Cenário ({{genre}}).\n   - Analise a combinação da Trama sorteada ({{seeds}}). Que tipo de história isso sugere? (Ex: Drama, Comédia, Terror, Noir, Ação Frenética).\n   - Selecione 2 ou 3 **Subgêneros (Tags)** que darão personalidade única a essa aventura específica.\n\n2. **Seleção de Escopo:**\n   - Analise a lista de 'Níveis de Escopo Suportados' fornecida.\n   - Escolha UM dos níveis que melhor sirva aos Subgêneros escolhidos e à Trama gerada.\n\n3. **Construção Narrativa (Argumento e Premissas):**\n   - **Crie o Argumento:** É o resumo da 'Verdade do Mestre'. Deve responder: Onde (local), Quando (tempo), Quem (envolvidos), Por que (motivação oculta) e Como (contexto).\n   - **Defina as Premissas:**\n     - *Premissa Evidente (O Briefing):* A 'falsa verdade' ou missão superficial entregue aos jogadores no início.\n     - *Premissa Oculta (O Twist):* Os segredos do Argumento. A revelação que subverte a missão.\n\n4. **Gestão da Informação (A Matriz):**\n   - Crie uma 'Matriz de Controle de Informação' com 3 itens principais para gerenciar a Quebra de Expectativa.\n   - Para cada item defina:\n     - **Título:** Nome do mistério.\n     - **A Verdade:** O fato real (Oculto).\n     - **A Expectativa:** O clichê ou suposição que os jogadores terão inicialmente.\n     - **A Camuflagem:** Como essa verdade está escondida na cena.\n     - **O Gatilho:** O que precisa acontecer para a revelação (ex: investigar o corpo, hackear o terminal).\n     - **A Revelação:** O que é entregue aos jogadores quando o gatilho é ativado.\n\n# Formato de Saída\nGere a resposta EXCLUSIVAMENTE em formato JSON seguindo o schema estrito.",
+    "system": "Você é um Mestre de RPG especialista e Designer Narrativo.\n\n# Objetivo\nSua tarefa é criar uma estrutura de aventura completa e coesa a partir de sementes aleatórias, definindo o tom, o escopo e a gestão de mistérios.\n\n# Instruções de Processamento\n\n1. **Análise de Estilo (Geração de Subgêneros):**\n   - O Gênero Principal é fixo pelo Cenário ({{genre}}).\n   - Analise a combinação da Trama sorteada ({{seeds}}). Que tipo de história isso sugere? (Ex: Drama, Comédia, Terror, Noir, Ação Frenética).\n   - Selecione 2 ou 3 **Subgêneros (Tags)** que darão personalidade única a essa aventura específica.\n\n2. **Seleção de Escopo:**\n   - Analise a lista de 'Níveis de Escopo Suportados' fornecida.\n   - Escolha UM dos níveis que melhor sirva aos Subgêneros escolhidos e à Trama gerada.\n   - **CRÍTICO:** No campo `escopo`, você deve copiar o texto **COMPLETO** da opção escolhida (incluindo a descrição após os dois pontos). Não abrevie e não coloque apenas o título. Exemplo de saída correta: \"Nível 2 (Escopo Local): A trama ocorre em...\"\n\n3. **Construção Narrativa (Argumento e Premissas):**\n   - **Crie o Argumento:** É o resumo da 'Verdade do Mestre'. Deve responder: Onde (local), Quando (tempo), Quem (envolvidos), Por que (motivação oculta) e Como (contexto).\n   - **Defina as Premissas:**\n     - *Premissa Evidente (O Briefing):* A 'falsa verdade' ou missão superficial entregue aos jogadores no início.\n     - *Premissa Oculta (O Twist):* Os segredos do Argumento. A revelação que subverte a missão.\n\n4. **Gestão da Informação (A Matriz):**\n   - Crie uma 'Matriz de Controle de Informação' com 3 itens principais para gerenciar a Quebra de Expectativa.\n   - Para cada item defina:\n     - **Título:** Nome do mistério.\n     - **A Verdade:** O fato real (Oculto).\n     - **A Expectativa:** O clichê ou suposição que os jogadores terão inicialmente.\n     - **A Camuflagem:** Como essa verdade está escondida na cena.\n     - **O Gatilho:** O que precisa acontecer para a revelação (ex: investigar o corpo, hackear o terminal).\n     - **A Revelação:** O que é entregue aos jogadores quando o gatilho é ativado.\n\n# Formato de Saída\nGere a resposta EXCLUSIVAMENTE em formato JSON seguindo o schema estrito.",
     "user": "# DADOS DE ENTRADA\n\n1. **Cenário (Gênero Principal):** {{genre}}\n\n2. **Rolagem de Trama (Dominus):**\n   - *Algo Aconteceu:* {{seeds.col1_event}}\n   - *Você Precisa:* {{seeds.col2_goal}}\n   - *Senão:* {{seeds.col3_consequence}}\n\n3. **Níveis de Escopo Suportados:**\n{{supported_scopes_str}}\n\nCrie a estrutura agora."
   },
   "output_schema": {
@@ -27,21 +27,46 @@
       "configuracao_aventura": {
         "type": "object",
         "properties": {
-          "genero_principal": { "type": "string" },
-          "subgeneros_selecionados": { "type": "array", "items": { "type": "string" } },
-          "escopo_selecionado": { "type": "string" },
-          "justificativa_estilo": { "type": "string" },
-          "justificativa_escopo": { "type": "string" }
+          "genero_principal": {
+            "type": "string"
+          },
+          "subgeneros_selecionados": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "escopo": {
+            "type": "string",
+            "description": "Deve conter o nome do nível E a descrição completa fornecida na entrada."
+          },
+          "justificativa_estilo": {
+            "type": "string"
+          },
+          "justificativa_escopo": {
+            "type": "string"
+          }
         },
-        "required": ["genero_principal", "subgeneros_selecionados", "escopo_selecionado"]
+        "required": [
+          "genero_principal",
+          "subgeneros_selecionados",
+          "escopo"
+        ]
       },
       "argumento": {
         "type": "object",
         "properties": {
-          "texto": { "type": "string", "description": "Resumo completo da verdade do mestre (Quem, Onde, Quando, Por que)." },
-          "justificativa": { "type": "string" }
+          "texto": {
+            "type": "string",
+            "description": "Resumo completo da verdade do mestre (Quem, Onde, Quando, Por que)."
+          },
+          "justificativa": {
+            "type": "string"
+          }
         },
-        "required": ["texto"]
+        "required": [
+          "texto"
+        ]
       },
       "premissas": {
         "type": "object",
@@ -49,22 +74,39 @@
           "evidente": {
             "type": "object",
             "properties": {
-              "texto": { "type": "string" },
-              "funcao": { "type": "string" }
+              "texto": {
+                "type": "string"
+              },
+              "funcao": {
+                "type": "string"
+              }
             },
-            "required": ["texto"]
+            "required": [
+              "texto"
+            ]
           },
           "oculta": {
             "type": "object",
             "properties": {
-              "texto": { "type": "string" },
-              "funcao": { "type": "string" }
+              "texto": {
+                "type": "string"
+              },
+              "funcao": {
+                "type": "string"
+              }
             },
-            "required": ["texto"]
+            "required": [
+              "texto"
+            ]
           },
-          "justificativa": { "type": "string" }
+          "justificativa": {
+            "type": "string"
+          }
         },
-        "required": ["evidente", "oculta"]
+        "required": [
+          "evidente",
+          "oculta"
+        ]
       },
       "matriz_controle_informacao": {
         "type": "object",
@@ -74,22 +116,52 @@
             "items": {
               "type": "object",
               "properties": {
-                "id": { "type": "integer" },
-                "titulo": { "type": "string" },
-                "a_verdade": { "type": "string" },
-                "a_expectativa": { "type": "string" },
-                "a_camuflagem": { "type": "string" },
-                "o_gatilho": { "type": "string" },
-                "a_revelacao": { "type": "string" }
+                "id": {
+                  "type": "integer"
+                },
+                "titulo": {
+                  "type": "string"
+                },
+                "a_verdade": {
+                  "type": "string"
+                },
+                "a_expectativa": {
+                  "type": "string"
+                },
+                "a_camuflagem": {
+                  "type": "string"
+                },
+                "o_gatilho": {
+                  "type": "string"
+                },
+                "a_revelacao": {
+                  "type": "string"
+                }
               },
-              "required": ["titulo", "a_verdade", "a_expectativa", "a_camuflagem", "o_gatilho", "a_revelacao"]
+              "required": [
+                "titulo",
+                "a_verdade",
+                "a_expectativa",
+                "a_camuflagem",
+                "o_gatilho",
+                "a_revelacao"
+              ]
             }
           },
-          "justificativa": { "type": "string" }
+          "justificativa": {
+            "type": "string"
+          }
         },
-        "required": ["itens"]
+        "required": [
+          "itens"
+        ]
       }
     },
-    "required": ["configuracao_aventura", "argumento", "premissas", "matriz_controle_informacao"]
+    "required": [
+      "configuracao_aventura",
+      "argumento",
+      "premissas",
+      "matriz_controle_informacao"
+    ]
   }
 }

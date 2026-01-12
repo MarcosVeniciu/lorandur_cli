@@ -7,7 +7,6 @@ from typing import Dict, Any, List, Optional, Union
 class ModelLLM:
     """
     Cliente para a API OpenRouter.
-    Versão com DEBUG VERBOSO para diagnóstico de conexão.
     """
 
     def __init__(self):
@@ -53,10 +52,7 @@ class ModelLLM:
             }
         }
 
-        # Debug: Mostrar que estamos iniciando a chamada estruturada
-        print(f"\n[ModelLLM DEBUG] Iniciando generate_structured...")
-        print(f"[ModelLLM DEBUG] Model Preset: {model_preset or self.default_model}")
-
+        # Repassa flags de debug/teste se necessário
         raw_response = self.generate(
             system_instruction=system_instruction,
             prompt=user_message,
@@ -74,10 +70,13 @@ class ModelLLM:
         cleaned_content = self._clean_markdown(content)
         
         try:
-            return json.loads(cleaned_content)
+            parsed_json = json.loads(cleaned_content)
+            # Injeta metadados de uso no JSON retornado para fins de log/custo
+            if isinstance(parsed_json, dict) and "usage" in raw_response:
+                parsed_json["_meta_usage"] = raw_response["usage"]
+            return parsed_json
         except json.JSONDecodeError as e:
             print(f"[ModelLLM ERROR] Falha no Parse JSON: {e}")
-            print(f"[ModelLLM DEBUG] Conteúdo recebido para parse:\n{content}")
             return {"error": "JSON_PARSE_FAILED", "raw_content": content}
 
     def _clean_markdown(self, text: str) -> str:
@@ -86,10 +85,8 @@ class ModelLLM:
             text = text[7:]
         elif text.startswith("```"):
             text = text[3:]
-        
         if text.endswith("```"):
             text = text[:-3]
-        
         return text.strip()
 
     def generate(
@@ -116,7 +113,9 @@ class ModelLLM:
         payload = {
             "model": target_model, 
             "messages": conversation,
-            "plugins": [{"id": "response-healing"}]
+            "plugins": [{"id": "response-healing"}],
+            # Flag para garantir retorno de usage (padrão OpenRouter, mas reforçado)
+            "include_non_standard_pricing": True 
         }
 
         if response_format:
@@ -127,10 +126,6 @@ class ModelLLM:
     def _make_request_with_retry(self, payload: Dict, retries: int = 3) -> Dict[str, Any]:
         for attempt in range(retries):
             try:
-                # Debug do Payload antes de enviar
-                if attempt == 0:
-                   print(f"[ModelLLM DEBUG] Payload (parcial): model={payload.get('model')}, stream={payload.get('stream', False)}")
-
                 response = requests.post(
                     self.api_url, 
                     headers=self.headers, 
@@ -147,13 +142,13 @@ class ModelLLM:
                 if "choices" in data and len(data["choices"]) > 0:
                     content = data["choices"][0]["message"]["content"]
                     usage = data.get("usage", {})
+                    # Tenta capturar custo se a API mandar em extensões não padrão
+                    # Caso contrário, o BaseTest calculará via usage
                     return {"content": content, "usage": usage}
                 else:
-                    print(f"[ModelLLM ERROR] Resposta vazia da API: {data}")
                     return {"content": "", "error": "Empty response from API"}
 
             except requests.exceptions.RequestException as e:
-                print(f"[ModelLLM WARN] Tentativa {attempt+1}/{retries} falhou: {e}")
                 time.sleep(2 ** attempt)
         
         return {"content": "", "error": "Connection failed after retries"}

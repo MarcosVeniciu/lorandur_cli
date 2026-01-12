@@ -1,37 +1,26 @@
 {
   "module_id": "step2_front_worldbuilder",
-  "version": "4.0.0",
+  "version": "4.1.1",
   "type": "TYPE_I_PIPELINE",
-  "description": "Fase 2: Define a Ameaça, o Elenco de NPCs e o Desastre Iminente baseados no Arquétipo e Locais.",
   "configuration": {
     "model_preset": "@preset/lorandur-cli",
     "response_healing": true
   },
-  "inputs_required": [
-    "genre",
-    "subgenres",
-    "scope",
-    "argumento",
-    "step1_arquetipo",
-    "step1_foco",
-    "step1_locais",
-    "premissas",
-    "arquetipos_personagens_permitidos"
-  ],
+  "inputs_required": ["genre", "subgenres", "scope", "argumento", "step1_arquetipo", "step1_foco", "step1_locais", "premissas", "arquetipos_personagens_permitidos"],
   "input_mapping": {
     "genre": "context.genre",
     "subgenres": "adventure.trama.configuracao_aventura.subgeneros_selecionados",
     "scope": "adventure.trama.configuracao_aventura.escopo",
     "argumento": "adventure.trama.argumento.texto",
-    "step1_arquetipo": "adventure.front.step1.cabecalho.arquetipo_selecionado",
+    "step1_arquetipo": "adventure.front.step1.cabecalho.enredo_selecionado",
     "step1_foco": "adventure.front.step1.cabecalho.foco_narrativo",
     "step1_locais": "adventure.front.step1.lista_locais",
     "premissas": "adventure.trama.premissas",
     "arquetipos_personagens_permitidos": "context.available_archetypes_str"
   },
   "prompts": {
-    "system": "Este documento contém a estrutura do prompt para a **Fase 2**, focada em povoar o mundo criado e definir os perigos ativos.\n\n# **PARTE 1: SYSTEM PROMPT**\n\nVocê é um Mestre de RPG especialista e Designer Narrativo.\n\n# **Objetivo**\n\nSua tarefa é dar vida à \"Frente de Aventura\". Utilizando o Arquétipo e os Locais definidos na fase anterior, você deve criar o **Elenco**, os **Perigos** ativos e definir o **Desastre Iminente**.\n\n# **Instruções de Processamento**\n\n1. **Definição do Contexto (Descrição):**\n   * Escreva um breve parágrafo de **Descrição** da Frente. Resuma o foco central do conflito, conectando o Arquétipo de Enredo à ameaça imediata.\n\n2. Criação do Elenco e Perigos:\n   O objetivo é criar ameaças vivas e dinâmicas, não apenas estátuas estáticas. Siga estritamente os passos abaixo:\n   * **Passo A: Elenco (The Cast):**\n     * Liste os NPCs e Organizações cruciais citados no Argumento.\n     * Dê a cada um: **Nome**, **Papel/Função** e um **Detalhe Marcante** (algo visual ou de personalidade). *Use a lista de `arquetipos_personagens_permitidos` para inspiração.*\n   * **Passo B: Perigos (Dangers):**\n     * Crie 2 ou 3 ameaças ativas que se opõem aos jogadores.\n     * Para cada Perigo, selecione um **Tipo** e um **Impulso** da lista oficial de Dungeon World (ex: Hordas, Inimigos Arcanos, Organizações Ambiciosas, etc.). **Não invente impulsos.**\n     * **Vínculo com Local:** Ao descrever o perigo, cite onde ele está operando ou qual local da lista_locais ele ameaça diretamente.\n\n**Lista de Referência (Tipo: Impulso):**\n\n* **Organizações Ambiciosas:**\n  * *Culto:* Infestar a partir de dentro.\n  * *Governo Corrupto:* Manter o status quo.\n  * *Cabala:* Absorver aqueles que estão no poder, crescer.\n  * *Organização Religiosa:* Estabelecer e seguir doutrinas.\n* **Hordas:**\n  * *Criaturas Humanoides (ex: Orcs, Goblins):* Crescer, multiplicar e consumir.\n  * *Habitantes do Submundo:* Defender seus complexos de forasteiros.\n  * *Praga de Mortos-Vivos:* Espalhar.\n* **Inimigos Arcanos:**\n  * *Lorde Morto-Vivo:* Buscar a verdadeira imortalidade.\n  * *Mago Louco por Poder:* Buscar poder mágico a qualquer custo.\n  * *Dragão:* Reunir ouro e joias, proteger sua ninhada.\n* **Lugares Amaldiçoados:**\n  * *Portal das Trevas:* Expelir demônios/monstros.\n  * *Lugar de Poder:* Ser controlado ou domado.\n* **Forças Planares:**\n  * *Deus:* Reunir seguidores.\n  * *Força do Caos:* Destruir qualquer semblante de ordem.\n3. **Definição do Desastre Iminente:**\n   * Defina o \"Game Over\" narrativo. O que acontece se os jogadores falharem completamente?\n   * Escolha um Tipo de Desastre: Tirania, Pestilência, Destruição, Usurpação, Empobrecimento, Caos.",
-    "user": "### 1. Estrutura da Frente (Fase 1)\n* **Gênero:** {{genre}}\n* **Subgêneros:** {{subgenres}}\n* **Escopo Geográfico:** {{scope}}\n* **Arquétipo:** {{step1_arquetipo}}\n* **Foco Narrativo (Atmosfera Central):** {{step1_foco}}\n* **Locais Disponíveis (O Palco):**\n{{#each step1_locais}}\n  - **{{this.nome}}** ({{this.funcao}}): {{this.tags}} - {{this.descricao}}\n{{/each}}\n\n### 2. Contexto da Trama\n* **Argumento:** {{argumento}}\n* **Premissa Evidente:** {{premissas.evidente.texto}}\n* **Premissa Oculta:** {{premissas.oculta.texto}}\n\n### 3. Opções de Criação\n* **Arquétipos de Personagens Permitidos:** {{arquetipos_personagens_permitidos}}\n\nAgora, povoe este mundo. Crie a descrição da frente, o elenco, os perigos (vinculados aos locais) e o desastre iminente."
+    "system": "Você é um Mestre de RPG especialista e Designer Narrativo.\n\n# **Objetivo**\n\nSua tarefa é dar vida à \"Frente de Aventura\". Utilizando o Arquétipo e os Locais definidos na fase anterior, você deve criar o **Elenco**, os **Perigos** ativos e definir o **Desastre Iminente**.\n\n# **Instruções de Processamento**\n\n1. **Definição do Contexto (Descrição):**\n   * Escreva um breve parágrafo de **Descrição** da Frente. Resuma o foco central do conflito, conectando o Arquétipo de Enredo à ameaça imediata.\n\n2. Criação do Elenco e Perigos:\n O objetivo é criar ameaças vivas, dinâmicas e memoráveis, evitando o 'vilão passivo' que apenas espera pelos heróis. Siga estritamente os passos abaixo, aplicando os princípios de **Agência**, **Vínculo** e **Presença**:\n### **Passo A: Elenco (The Cast)**\nAqui definimos a *identidade* e a *alma* dos personagens principais (Antagonistas e Aliados chave).\n * Liste os NPCs e Organizações cruciais citados no Argumento.\n* Para cada NPC principal (especialmente o vilão), defina:\n    1. **Nome e Papel/Função**.\n    2. **Detalhe Marcante:** Algo visual ou de comportamento que denote competência ou perigo (ex: 'Fala sussurrando, mas todos se calam para ouvir').\n    3. **A Convicção (O Herói da Própria História):** Qual é a motivação interna dele? Ele deve acreditar que está fazendo o necessário (ex: 'Salvar a cidade através do controle total'). Evite o 'mal pelo mal'.\n    4. **O Contraste (Humanização):** Uma característica que quebre a expectativa de monstruosidade (ex: 'Um general impiedoso que cuida com carinho de orquídeas raras').\n\n### **Passo B: Perigos (Dangers)**\nAqui definimos a *ação* e a *mecânica* da ameaça em **Dungeon World**. O Perigo é o motor da narrativa.\n* Crie 2 ou 3 ameaças ativas.\n* Para cada Perigo, siga a estrutura:\n    1. **Nome do Perigo:** (Ex: 'A Cruzada de Ferro de Lorde Kael').\n    2. **Tipo e Impulso:** Selecione **estritamente** da lista oficial de Dungeon World (ex: *Horda - Impulso: Crescer em força e destruir*; *Inimigo Arcano - Impulso: Conquistar o poder proibido*).\n    3. **A Ameaça à Verdade:** Como este perigo ataca não só o HP, mas as **crenças** ou o **moral** dos heróis? (ex: 'Eles provam que a democracia falhou').\n    4. **Vínculo com Local/Rastro:** Onde ele está operando e qual cicatriz ele já deixou no mundo? (Mostre o impacto antes de mostrar o vilão).\n    5. **Ação Iminente:** O que o perigo fará **agora** se os jogadores não intervierem? (O vilão deve ser ativo, não reativo).\n\n### Exemplo de Estrutura Esperada (Output):\n**ELENCO**\n* **Silas Vance (O Arquiteto):** Líder da Corporação. *Detalhe:* Possui um braço mecânico de ouro polido que nunca suja de óleo. *Convicção:* Acredita que o livre-arbítrio gerou o caos da guerra; a ordem perfeita exige submissão. *Contraste:* Financia anonimamente orfanatos para vítimas de guerra.\n**PERIGOS**\n* **Perigo 1:** A Mente Colmeia de Silas (Organização Ambiciosa)\n    * **Impulso:** Controlar através da influência e pactos.\n    * **Ameaça à Verdade:** Desafia a ideia de liberdade dos heróis, oferecendo segurança absoluta em troca de obediência.\n    * **Vínculo com Local:** Domina o Distrito Industrial, onde os operários agora trabalham em silêncio absoluto e sincronizado (o Rastro).\n    * **Ação Iminente:** Está prestes a ativar as torres de sinal que suprimirão as emoções no setor residencial.\n\n**Lista de Referência (Tipo: Impulso):**\n\n* **Organizações Ambiciosas:**\n  * *Culto:* Infestar a partir de dentro.\n  * *Governo Corrupto:* Manter o status quo.\n  * *Cabala:* Absorver aqueles que estão no poder, crescer.\n  * *Organização Religiosa:* Estabelecer e seguir doutrinas.\n* **Hordas:**\n  * *Criaturas Humanoides (ex: Orcs, Goblins):* Crescer, multiplicar e consumir.\n  * *Habitantes do Submundo:* Defender seus complexos de forasteiros.\n  * *Praga de Mortos-Vivos:* Espalhar.\n* **Inimigos Arcanos:**\n  * *Lorde Morto-Vivo:* Buscar a verdadeira imortalidade.\n  * *Mago Louco por Poder:* Buscar poder mágico a qualquer custo.\n  * *Dragão:* Reunir ouro e joias, proteger sua ninhada.\n* **Lugares Amaldiçoados:**\n  * *Portal das Trevas:* Expelir demônios/monstros.\n  * *Lugar de Poder:* Ser controlado ou domado.\n* **Forças Planares:**\n  * *Deus:* Reunir seguidores.\n  * *Força do Caos:* Destruir qualquer semblante de ordem.\n3. **Definição do Desastre Iminente:**\n   * Defina o \"Game Over\" narrativo. O que acontece se os jogadores falharem completamente?\n   * Escolha um Tipo de Desastre: Tirania, Pestilência, Destruição, Usurpação, Empobrecimento, Caos.",
+    "user": "### 1. Estrutura da Frente\n* **Gênero:** {{genre}}\n* **Subgêneros:** {{subgenres}}\n* **Escopo Geográfico:** {{scope}}\n* **Arquétipo:** {{step1_arquetipo}}\n* **Foco Narrativo:** {{step1_foco}}\n\n### 2. Dados dos Locais (Step 1)\n>>> DADOS DOS LOCAIS:\n{{step1_locais}}\n\n### 3. Contexto da Trama\n* **Argumento:** {{argumento}}\n* **Premissa Evidente:** {{premissas.evidente.texto}}\n* **Premissa Oculta:** {{premissas.oculta.texto}}\n\n### 4. Opções de Criação\n* **Arquétipos Permitidos:** {{arquetipos_personagens_permitidos}}\n\nAgora, povoe este mundo."
   },
   "output_schema": {
     "type": "object",
@@ -42,7 +31,7 @@
       },
       "elenco": {
         "type": "array",
-        "description": "Lista de NPCs e Factions.",
+        "description": "Lista de NPCs e Facções, focando em suas motivações e contradições.",
         "items": {
           "type": "object",
           "properties": {
@@ -54,19 +43,29 @@
             },
             "detalhe_marcante": {
               "type": "string",
-              "description": "Algo visual ou de personalidade."
+              "description": "Algo visual ou de comportamento (competência/perigo)."
+            },
+            "conviccao": {
+              "type": "string",
+              "description": "A motivação interna ('O Herói da Própria História')."
+            },
+            "contraste": {
+              "type": "string",
+              "description": "Fator de humanização que quebra expectativas."
             }
           },
           "required": [
             "nome",
             "papel_funcao",
-            "detalhe_marcante"
+            "detalhe_marcante",
+            "conviccao",
+            "contraste"
           ]
         }
       },
       "perigos": {
         "type": "array",
-        "description": "Ameaças ativas (2 ou 3).",
+        "description": "Ameaças ativas (2 ou 3) com mecânicas de Dungeon World.",
         "items": {
           "type": "object",
           "properties": {
@@ -81,21 +80,31 @@
               "type": "string",
               "description": "O impulso oficial correspondente."
             },
+            "ameaca_verdade": {
+              "type": "string",
+              "description": "Como o perigo ataca as crenças ou moral dos heróis."
+            },
             "local_vinculado": {
               "type": "string",
-              "description": "Qual local da lista ele ocupa ou ameaça."
+              "description": "Nome do local onde o perigo opera."
             },
-            "descricao": {
+            "rastro_destruicao": {
               "type": "string",
-              "description": "Descrição da ameaça em ação."
+              "description": "A cicatriz ou impacto visível deixado no local."
+            },
+            "acao_iminente": {
+              "type": "string",
+              "description": "O que o perigo fará AGORA se não for impedido."
             }
           },
           "required": [
             "nome",
             "tipo",
             "impulso",
+            "ameaca_verdade",
             "local_vinculado",
-            "descricao"
+            "rastro_destruicao",
+            "acao_iminente"
           ]
         }
       },
