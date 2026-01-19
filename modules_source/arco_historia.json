@@ -1,0 +1,142 @@
+{
+  "module_id": "step4_arc_builder",
+  "version": "1.0.0",
+  "type": "TYPE_I_PIPELINE",
+  "description": "Gera um Arco de História completo (nível de aventura) com cenas detalhadas e esboçadas, baseado na metodologia Narradores Narrados.",
+  "configuration": {
+    "model_preset": "@preset/lorandur-cli",
+    "response_healing": true
+  },
+  "inputs_required": [
+    "genre",
+    "scope",
+    "argumento_campanha",
+    "elenco",
+    "perigos",
+    "locais",
+    "foco_narrativo"
+  ],
+  "input_mapping": {
+    "genre": "context.genre",
+    "scope": "adventure.trama.configuracao_aventura.escopo",
+    "argumento_campanha": "adventure.trama.argumento.texto",
+    "elenco": "adventure.front.step2.elenco",
+    "perigos": "adventure.front.step2.perigos",
+    "locais": "adventure.front.step1.lista_locais",
+    "foco_narrativo": "adventure.front.step1.cabecalho.foco_narrativo"
+  },
+  "prompts": {
+    "system": "Você é um Mestre de RPG especialista e Designer Narrativo, seguindo a metodologia 'Narradores Narrados'.\n\n# **Objetivo**\nSua tarefa é criar um **Arco de História** (uma aventura completa de curto/médio prazo) dentro da campanha. Você deve definir a estrutura emocional do arco e planejar as cenas sequenciais.\n\n# **Instruções de Processamento**\n\n### **1. Definição do Arco (O Esqueleto)**\n* **Argumento do Arco:** Crie uma história contida que colabore com o argumento maior da campanha, mas tenha início, meio e fim próprios. Defina a **Premissa Evidente** (o que os jogadores acham que é) e a **Premissa Oculta** (o que realmente está acontecendo neste arco).\n* **Arquétipo de Enredo:** Escolha um modelo (ex: 'A Busca', 'Superar o Monstro', 'Viagem e Retorno') que guiará as fases da história.\n* **Curva Emocional:** Defina o movimento de tensão/bem-estar (ex: 'Do Bem-estar à Queda', 'Homem no Buraco', 'Cinderela'). O arco deve gerar movimento no gráfico de tensão da campanha.\n\n### **2. Planejamento das Cenas (A Musculatura)**\nVocê deve gerar uma lista sequencial de cenas organizadas pelas **Fases do Enredo** escolhido. Não há limite de cenas, mas a história deve fluir logicamente.\n\n**REGRA DE DETALHAMENTO (CRÍTICA):**\n* **Cenas 1 e 2:** Devem ser **TOTALMENTE DETALHADAS**.\n* **Cenas 3 em diante:** Devem ser apenas **ESBOÇOS (Argumentos)**.\n\n#### **Estrutura de uma Cena Detalhada (Cenas 1 e 2):**\nPara as duas primeiras cenas, preencha os seguintes campos baseados nos 3 pilares da cena:\n1.  **Objetivo Narrativo:** O que essa cena cumpre na história? (ex: Apresentar o vilão, dar uma informação, gerar empatia).\n2.  **O Conflito:** O problema que os jogadores devem resolver AGORA. Pode ser combate, social, exploração ou dilema moral.\n3.  **O Gancho:** O elemento final que aponta ou empurra para a próxima cena.\n4.  **Local:** Onde ocorre (use a lista de locais se possível).\n5.  **Detalhes Curiosos:** Liste 2 ou 3 detalhes sensoriais ou específicos (nomes, cheiros, objetos estranhos) que dão vida à cena e servem de pista para a Premissa Oculta.\n\n#### **Estrutura de uma Cena Esboço (Cena 3+):**\n* **Argumento da Cena:** Um parágrafo resumindo quem, onde e o que acontece. Qual é o propósito simples desta cena na fase atual do enredo?\n\n### **3. Orientações Gerais**\n* Use o **Elenco** e os **Perigos** fornecidos para povoar o arco.\n* Cada cena deve ter **um único objetivo simples**.\n* Lembre-se: O planejamento é um guia, não um trilho. Crie situações, não roteiros rígidos.",
+    "user": "### 1. Contexto da Campanha\n* **Gênero:** {{genre}}\n* **Escopo:** {{scope}}\n* **Argumento Geral:** {{argumento_campanha}}\n* **Foco Narrativo:** {{foco_narrativo}}\n\n### 2. Elementos Disponíveis\n>>> ELENCO:\n{{elenco}}\n\n>>> PERIGOS:\n{{perigos}}\n\n>>> LOCAIS:\n{{locais}}\n\n---\n\n**Tarefa:** Gere o arquivo do **Arco de História Atual**. Defina o enredo, a curva emocional e a lista de cenas (Detalhe as cenas 1 e 2, esboce as restantes)."
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "cabecalho_arco": {
+        "type": "object",
+        "properties": {
+          "titulo_arco": {
+            "type": "string",
+            "description": "Um título evocativo para esta aventura."
+          },
+          "arquetipo_enredo": {
+            "type": "string",
+            "description": "Ex: A Busca, Superar o Monstro, Tragédia, etc."
+          },
+          "curva_emocional": {
+            "type": "string",
+            "description": "Ex: Queda -> Ascensão (Homem no Buraco)."
+          },
+          "argumento_arco": {
+            "type": "string",
+            "description": "Resumo da história deste arco específico."
+          },
+          "premissas_arco": {
+            "type": "object",
+            "properties": {
+              "evidente": {
+                "type": "string",
+                "description": "A missão apresentada aos jogadores."
+              },
+              "oculta": {
+                "type": "string",
+                "description": "A verdade por trás deste arco específico."
+              }
+            },
+            "required": ["evidente", "oculta"]
+          }
+        },
+        "required": [
+          "titulo_arco",
+          "arquetipo_enredo",
+          "curva_emocional",
+          "argumento_arco",
+          "premissas_arco"
+        ]
+      },
+      "lista_cenas": {
+        "type": "array",
+        "description": "Lista sequencial de todas as cenas do arco.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "numero": {
+              "type": "integer"
+            },
+            "titulo": {
+              "type": "string"
+            },
+            "fase_do_enredo": {
+              "type": "string",
+              "description": "Em qual etapa do arquétipo esta cena se encaixa (ex: O Chamado, A Frustração)."
+            },
+            "tipo_detalhamento": {
+              "type": "string",
+              "enum": ["Detalhado", "Esboco"],
+              "description": "'Detalhado' para cenas 1 e 2. 'Esboco' para as demais."
+            },
+            "conteudo_cena": {
+              "type": "object",
+              "properties": {
+                "objetivo_narrativo": {
+                  "type": "string",
+                  "description": "Apenas se Detalhado. O que a cena cumpre na história."
+                },
+                "conflito_principal": {
+                  "type": "string",
+                  "description": "Apenas se Detalhado. O problema a ser resolvido."
+                },
+                "gancho": {
+                  "type": "string",
+                  "description": "Apenas se Detalhado. O que leva à próxima cena."
+                },
+                "local_cena": {
+                  "type": "string",
+                  "description": "Nome do local."
+                },
+                "detalhes_curiosos": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Apenas se Detalhado. Pistas sensoriais ou nomes específicos."
+                },
+                "argumento_resumido": {
+                  "type": "string",
+                  "description": "Obrigatório para todas. Se for Esboco, é o único campo preenchido."
+                }
+              },
+              "required": ["argumento_resumido"]
+            }
+          },
+          "required": [
+            "numero",
+            "titulo",
+            "fase_do_enredo",
+            "tipo_detalhamento",
+            "conteudo_cena"
+          ]
+        }
+      }
+    },
+    "required": ["cabecalho_arco", "lista_cenas"]
+  }
+}
