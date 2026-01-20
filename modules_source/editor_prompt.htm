@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt & Pipeline Builder (V9 - Deep Schema Scan)</title>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        /* Estilos para o Preview */
+        .preview-content { white-space: pre-wrap; font-family: 'JetBrains Mono', monospace; line-height: 1.6; }
+        .var-tag { display: inline-flex; align-items: center; padding: 0 4px; border-radius: 4px; font-size: 0.85em; vertical-align: middle; margin: 0 2px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- COMPONENTES UI ---
+
+        const Icon = ({ name, size = 18, className }) => {
+            useEffect(() => { lucide.createIcons(); }, [name]);
+            return <i data-lucide={name} width={size} height={size} className={className}></i>;
+        };
+
+        const TabButton = ({ active, label, icon, onClick }) => (
+            <button onClick={onClick} className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${active ? 'border-blue-500 text-blue-400 bg-slate-800/50' : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'}`}>
+                <Icon name={icon} size={16} /> {label}
+            </button>
+        );
+
+        // --- LÓGICA DO APP ---
+
+        const App = () => {
+            // Estado Principal
+            const [modules, setModules] = useState([]); 
+            const [activeModuleIndex, setActiveModuleIndex] = useState(null); 
+            const [activeTab, setActiveTab] = useState('system'); 
+            
+            // Estado de Edição e Mapeamento
+            const [sourceInputValue, setSourceInputValue] = useState(""); 
+            const [newMappingKey, setNewMappingKey] = useState("");
+            const [notification, setNotification] = useState(null);
+            const [schemaString, setSchemaString] = useState("");
+            const [showFieldSelector, setShowFieldSelector] = useState(false);
+            
+            // ESTADO DO MODO PREVIEW
+            const [isPreviewMode, setIsPreviewMode] = useState(false);
+            
+            const fieldSelectorRef = useRef(null);
+
+            // Módulo Ativo
+            const activeModule = activeModuleIndex !== null ? modules[activeModuleIndex] : null;
+
+            // Atualiza o editor de Schema e Inputs quando muda o módulo
+            useEffect(() => {
+                if (activeModule) {
+                    setSchemaString(JSON.stringify(activeModule.output_schema || {}, null, 2));
+                }
+            }, [activeModuleIndex]);
+
+            // Fecha o dropdown se clicar fora
+            useEffect(() => {
+                const handleClickOutside = (event) => {
+                    if (fieldSelectorRef.current && !fieldSelectorRef.current.contains(event.target)) {
+                        setShowFieldSelector(false);
+                    }
+                };
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => document.removeEventListener("mousedown", handleClickOutside);
+            }, []);
+
+            // --- INTELIGÊNCIA PREDITIVA (DEEP SCAN) ---
+            const availableFields = useMemo(() => {
+                const fields = new Set([
+                    "context.genre", 
+                    "context.seeds", 
+                    "context.supported_scopes_str",
+                    "context.available_locations_str",
+                    "context.available_archetypes_str"
+                ]); 
+
+                // Função Recursiva para extrair caminhos profundos do Schema
+                const traverseSchema = (schema, currentPath) => {
+                    if (!schema) return;
+                    
+                    // Adiciona o caminho atual (se não for vazio)
+                    if (currentPath) {
+                        fields.add(currentPath);
+                    }
+
+                    // Se for Objeto, mergulha nas propriedades
+                    if (schema.type === 'object' && schema.properties) {
+                        Object.keys(schema.properties).forEach(key => {
+                            const newPath = currentPath ? `${currentPath}.${key}` : key;
+                            traverseSchema(schema.properties[key], newPath);
+                        });
+                    }
+                    
+                    // Se for Array, adiciona o caminho do array, mas geralmente não mergulhamos nos itens 
+                    // para sugestão global (pois itens são acessados via loop #each), 
+                    // a menos que queiramos sugerir array.0.propriedade (opcional, aqui mantemos simples).
+                };
+
+                modules.forEach(mod => {
+                    // 1. Inputs Existentes
+                    if (mod.input_mapping) Object.values(mod.input_mapping).forEach(value => fields.add(value));
+                    
+                    // 2. Outputs Profundos (Output Mapping + Schema Recursivo)
+                    if (mod.output_mapping && mod.output_schema) {
+                        const rootPath = mod.output_mapping["@ROOT"];
+                        if (rootPath) {
+                            // Inicia a travessia a partir da raiz definida
+                            traverseSchema(mod.output_schema, rootPath);
+                        }
+                    }
+                });
+                return Array.from(fields).sort();
+            }, [modules]);
+
+            const filteredAvailableFields = useMemo(() => {
+                if (!sourceInputValue) return availableFields;
+                return availableFields.filter(f => f.toLowerCase().includes(sourceInputValue.toLowerCase()));
+            }, [availableFields, sourceInputValue]);
+
+            // --- MANIPULAÇÃO DE ARQUIVOS ---
+            const handleFileUpload = (event) => {
+                const files = Array.from(event.target.files);
+                files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const json = JSON.parse(e.target.result);
+                            if (!json.output_mapping) json.output_mapping = {};
+                            const moduleData = {
+                                ...json,
+                                _fileName: file.name,
+                                _id: Math.random().toString(36).substr(2, 9)
+                            };
+                            setModules(prev => [...prev, moduleData]);
+                            setModules(prev => {
+                                if (prev.length === 1) setActiveModuleIndex(0);
+                                return prev;
+                            });
+                        } catch (err) {
+                            showNotification(`Erro ao ler ${file.name}: JSON inválido`);
+                        }
+                    };
+                    reader.readAsText(file);
+                });
+            };
+
+            const handleDownloadCurrent = () => {
+                if (!activeModule) return;
+                const { _fileName, _id, ...cleanModule } = activeModule;
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(cleanModule, null, 2));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", _fileName || `${cleanModule.module_id || "module"}.json`);
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            };
+
+            // --- MANIPULAÇÃO DO JSON ---
+            const updateActiveModule = (field, value, subField = null) => {
+                if (activeModuleIndex === null) return;
+                setModules(prev => {
+                    const newModules = [...prev];
+                    const mod = { ...newModules[activeModuleIndex] };
+                    
+                    if (field === 'prompts') {
+                        mod.prompts = { ...mod.prompts, [subField]: value };
+                    } else if (field === 'output_schema') {
+                        mod.output_schema = value;
+                    } else if (field === 'input_mapping_add') {
+                         mod.input_mapping = { ...mod.input_mapping, [subField.key]: subField.value };
+                    } else if (field === 'input_mapping_remove') {
+                         const newMap = { ...mod.input_mapping };
+                         delete newMap[subField];
+                         mod.input_mapping = newMap;
+                    } else if (field === 'output_root') {
+                        mod.output_mapping = { ...mod.output_mapping, "@ROOT": value };
+                    }
+                    newModules[activeModuleIndex] = mod;
+                    return newModules;
+                });
+            };
+
+            const handleSchemaChange = (val) => {
+                setSchemaString(val);
+                try {
+                    const parsed = JSON.parse(val);
+                    updateActiveModule('output_schema', parsed);
+                } catch (e) {}
+            };
+
+            const addMapping = () => {
+                if (!newMappingKey || !sourceInputValue) return;
+                updateActiveModule('input_mapping_add', null, { key: newMappingKey, value: sourceInputValue });
+                showNotification(`Mapeamento '${newMappingKey}' adicionado!`);
+                setNewMappingKey("");
+                setSourceInputValue("");
+                setShowFieldSelector(false);
+            };
+
+            const showNotification = (msg) => {
+                setNotification(msg);
+                setTimeout(() => setNotification(null), 3000);
+            };
+
+            // --- FUNÇÕES DE PREVIEW (SMART NESTED) ---
+            const generatePreviewHTML = (text, mapping) => {
+                if (!text) return "";
+                let safeText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+                // 1. Substituir variáveis Simples {{key}} ou Aninhadas {{key.prop}}
+                safeText = safeText.replace(/\{\{([^#\/]+?)\}\}/g, (match, key) => {
+                    const trimmedKey = key.trim();
+                    
+                    // Lógica de Resolução de Propriedades Aninhadas
+                    // 1. Tenta Match Exato
+                    let sourcePath = mapping[trimmedKey];
+                    let isNested = false;
+                    let rootKey = trimmedKey;
+
+                    // 2. Se falhar, tenta achar a Raiz do objeto (ex: "premissas" em "premissas.evidente.texto")
+                    if (!sourcePath && trimmedKey.includes('.')) {
+                        const parts = trimmedKey.split('.');
+                        rootKey = parts[0]; 
+                        if (mapping[rootKey]) {
+                            sourcePath = mapping[rootKey]; // O caminho real do objeto pai (ex: adventure.trama.premissas)
+                            isNested = true;
+                        }
+                    }
+                    
+                    if (sourcePath) {
+                        // Constrói o caminho completo para exibição no tooltip
+                        const fullResolvedPath = isNested 
+                            ? `${sourcePath}.${trimmedKey.substring(rootKey.length + 1)}`
+                            : sourcePath;
+
+                        // Visualização: Se for nested, deixa a raiz em negrito para mostrar que ela é a âncora
+                        const displayText = isNested 
+                            ? `<b>${rootKey}</b>${trimmedKey.substring(rootKey.length)}` 
+                            : trimmedKey;
+
+                        return `<span class="var-tag bg-blue-900 text-blue-200 border border-blue-700 cursor-help" title="Mapeado para: ${fullResolvedPath}">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mr-1"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                            ${displayText}
+                        </span>`;
+                    }
+                    
+                    // Erro: Não encontrou nem exato nem a raiz
+                    return `<span class="var-tag bg-red-900 text-red-200 border border-red-700 font-bold" title="Erro: Variável '${trimmedKey}' (e nem sua raiz) foi encontrada no Input Mapping.">${trimmedKey} (?)</span>`;
+                });
+
+                // 2. Substituir Início de Loop {{#each key}}
+                safeText = safeText.replace(/\{\{#each\s+(.+?)\}\}/g, (match, key) => {
+                    const trimmedKey = key.trim();
+                    const sourcePath = mapping[trimmedKey] || `${trimmedKey} (Não mapeado)`;
+                    const colorClass = mapping[trimmedKey] ? "border-purple-500 bg-purple-900/20" : "border-red-500 bg-red-900/20";
+                    
+                    return `<div class="my-3 pl-3 border-l-4 ${colorClass} rounded-r" title="Loop sobre: ${sourcePath}">
+                        <div class="text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-1 ${mapping[trimmedKey] ? "text-purple-400" : "text-red-400"}">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+                            Loop: Lista de ${trimmedKey}
+                        </div>`;
+                });
+
+                // 3. Substituir Fim de Loop {{/each}}
+                safeText = safeText.replace(/\{\{\/each\}\}/g, () => {
+                    return `</div>`;
+                });
+
+                return safeText;
+            };
+
+            // --- CLIPBOARD & LOOP UTILS ---
+            const copyToSystemClipboard = (text) => {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-9999px";
+                textArea.style.top = "0";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    return successful;
+                } catch (err) {
+                    document.body.removeChild(textArea);
+                    return false;
+                }
+            };
+            const copyToClipboard = (text) => {
+                if(copyToSystemClipboard(text)) showNotification("Copiado!");
+                else showNotification("Erro ao copiar.");
+            };
+            const getSmartFieldsForPath = (path) => {
+                if (!path) return null;
+                for (const mod of modules) {
+                    const rootPath = mod.output_mapping?.["@ROOT"];
+                    if (rootPath && mod.output_schema && mod.output_schema.properties) {
+                        if (path.startsWith(rootPath)) {
+                            const remainingPath = path.replace(rootPath + ".", "");
+                            const prop = mod.output_schema.properties[remainingPath];
+                            if (prop && prop.type === 'array' && prop.items && prop.items.properties) {
+                                return Object.keys(prop.items.properties);
+                            }
+                        }
+                    }
+                    const targetKey = path.split('.').pop();
+                    if (mod.output_schema && mod.output_schema.properties && mod.output_schema.properties[targetKey]) {
+                        const prop = mod.output_schema.properties[targetKey];
+                        if (prop.type === 'array' && prop.items && prop.items.properties) {
+                            return Object.keys(prop.items.properties);
+                        }
+                    }
+                }
+                return null;
+            };
+            const copyLoopToClipboard = (key, path) => {
+                const smartFields = getSmartFieldsForPath(path);
+                let loopTemplate = "";
+                if (smartFields && smartFields.length > 0) {
+                    loopTemplate = `{{#each ${key}}}\n`;
+                    smartFields.forEach(field => {
+                        const label = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        loopTemplate += `  * ${label}: {{${field}}}\n`;
+                    });
+                    loopTemplate += `{{/each}}`;
+                    showNotification(`Loop Inteligente gerado!`);
+                } else {
+                    loopTemplate = `{{#each ${key}}}\n  * Nome: {{nome}}\n  Detalhes: {{descricao}}\n{{/each}}`;
+                    showNotification("Loop Genérico gerado.");
+                }
+                copyToSystemClipboard(loopTemplate);
+            }
+
+            // --- RENDERIZAÇÃO ---
+            if (modules.length === 0) {
+                return (
+                    <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-slate-400 p-8">
+                        <div className="bg-slate-800 p-8 rounded-xl border border-slate-700 shadow-2xl max-w-md w-full text-center">
+                            <div className="bg-blue-600/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-blue-500">
+                                <Icon name="upload-cloud" size={32} />
+                            </div>
+                            <h1 className="text-2xl font-bold text-white mb-2">Editor de Pipelines</h1>
+                            <p className="mb-6">Carregue seus arquivos JSON (Módulos) para começar a editar e mapear variáveis.</p>
+                            <label className="block w-full cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded transition-colors">
+                                <input type="file" multiple accept=".json" onChange={handleFileUpload} className="hidden" />
+                                <span className="flex items-center justify-center gap-2"><Icon name="folder-open" /> Selecionar Arquivos JSON</span>
+                            </label>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="flex h-screen overflow-hidden bg-slate-900 text-slate-200">
+                    {notification && (
+                        <div className="fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded shadow-lg z-50 flex items-center gap-2 animate-bounce-in">
+                            <Icon name="check-circle" size={16} /> {notification}
+                        </div>
+                    )}
+
+                    <div className="w-64 bg-slate-950 border-r border-slate-800 flex flex-col shrink-0">
+                        <div className="p-4 border-b border-slate-800">
+                            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Arquivos Carregados</h2>
+                            <label className="flex items-center gap-2 w-full bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs py-2 px-3 rounded cursor-pointer transition-colors border border-slate-700">
+                                <Icon name="plus" size={14} /> 
+                                <input type="file" multiple accept=".json" onChange={handleFileUpload} className="hidden" />
+                                Adicionar Mais
+                            </label>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                            {modules.map((mod, idx) => (
+                                <button
+                                    key={mod._id}
+                                    onClick={() => setActiveModuleIndex(idx)}
+                                    className={`w-full text-left p-3 rounded-lg text-xs transition-all border ${
+                                        activeModuleIndex === idx 
+                                        ? 'bg-blue-900/20 border-blue-600/50 text-blue-200' 
+                                        : 'bg-transparent border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                                    }`}
+                                >
+                                    <div className="font-bold truncate mb-1">{mod.module_id || "Sem ID"}</div>
+                                    <div className="flex items-center gap-1 text-[10px] opacity-70">
+                                        <Icon name="file-json" size={10} />
+                                        <span className="truncate">{mod._fileName}</span>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col min-w-0">
+                        <header className="h-14 border-b border-slate-700 bg-slate-900 flex items-center justify-between px-4 shrink-0">
+                            <div className="flex items-center gap-2 overflow-hidden">
+                                <Icon name="edit-3" className="text-blue-500 shrink-0" />
+                                <div className="flex flex-col overflow-hidden">
+                                    <h1 className="font-bold text-slate-100 truncate">{activeModule.module_id || "Sem ID"}</h1>
+                                    <span className="text-[10px] text-slate-500 truncate">{activeModule._fileName}</span>
+                                </div>
+                            </div>
+                            <button onClick={handleDownloadCurrent} className="flex items-center gap-1 px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-600 transition-colors">
+                                <Icon name="download" size={14} /> Salvar JSON
+                            </button>
+                        </header>
+
+                        <div className="bg-slate-900 px-4 py-3 border-b border-slate-800 flex items-center gap-3">
+                            <div className="flex items-center gap-2 text-xs text-purple-400 font-bold bg-purple-400/10 px-2 py-1 rounded cursor-help" title="output_mapping.@ROOT">
+                                <Icon name="target" size={14} /> Output Mapping (@ROOT)
+                            </div>
+                            <div className="flex-1">
+                                <input 
+                                    type="text" 
+                                    value={activeModule.output_mapping?.["@ROOT"] || ""}
+                                    onChange={(e) => updateActiveModule('output_root', e.target.value)}
+                                    className="w-full bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-purple-500 font-mono placeholder-slate-600"
+                                    placeholder="Ex: adventure.front.step1"
+                                    title="Define onde o JSON gerado por este módulo será salvo no estado global."
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex border-b border-slate-700 bg-slate-900 justify-between items-center pr-4">
+                            <div className="flex">
+                                <TabButton active={activeTab === 'system'} onClick={() => setActiveTab('system')} label="System Prompt" icon="cpu" />
+                                <TabButton active={activeTab === 'user'} onClick={() => setActiveTab('user')} label="User Prompt" icon="user" />
+                                <TabButton active={activeTab === 'schema'} onClick={() => setActiveTab('schema')} label="JSON Schema" icon="code" />
+                            </div>
+                            
+                            {/* Toggle de Preview (Só aparece em abas de Prompt) */}
+                            {(activeTab === 'system' || activeTab === 'user') && (
+                                <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+                                    <button 
+                                        onClick={() => setIsPreviewMode(false)}
+                                        className={`px-3 py-1 text-xs rounded-md transition-all ${!isPreviewMode ? 'bg-blue-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        Editar
+                                    </button>
+                                    <button 
+                                        onClick={() => setIsPreviewMode(true)}
+                                        className={`px-3 py-1 text-xs rounded-md transition-all flex items-center gap-1 ${isPreviewMode ? 'bg-purple-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        <Icon name="eye" size={12} /> Visualizar
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex-1 overflow-auto bg-[#0d1117] relative flex flex-col">
+                            {activeTab === 'schema' ? (
+                                <textarea 
+                                    value={schemaString}
+                                    onChange={(e) => handleSchemaChange(e.target.value)}
+                                    className="flex-1 w-full bg-[#0d1117] text-green-400 p-6 font-mono text-sm resize-none focus:outline-none leading-relaxed"
+                                    spellCheck={false}
+                                />
+                            ) : (
+                                <>
+                                    {!isPreviewMode ? (
+                                        <textarea 
+                                            value={activeModule.prompts?.[activeTab] || ""}
+                                            onChange={(e) => updateActiveModule('prompts', e.target.value, activeTab)}
+                                            className="flex-1 w-full bg-[#0d1117] text-slate-300 p-6 font-mono text-sm resize-none focus:outline-none leading-relaxed"
+                                            placeholder={`Digite o ${activeTab} prompt aqui...`}
+                                            spellCheck={false}
+                                        />
+                                    ) : (
+                                        <div 
+                                            className="flex-1 w-full bg-[#0d1117] text-slate-300 p-6 font-mono text-sm overflow-auto preview-content"
+                                            dangerouslySetInnerHTML={{ __html: generatePreviewHTML(activeModule.prompts?.[activeTab], activeModule.input_mapping) }}
+                                        >
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="w-80 border-l border-slate-700 bg-slate-900 flex flex-col shrink-0">
+                        <div className="p-4 border-b border-slate-700">
+                            <h2 className="text-sm font-bold text-slate-100 flex items-center gap-2">
+                                <Icon name="braces" size={16} className="text-yellow-500" />
+                                Input Mapping
+                            </h2>
+                            <p className="text-[10px] text-slate-400 mt-1">Variáveis de entrada usadas no prompt.</p>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                            {(!activeModule.input_mapping || Object.keys(activeModule.input_mapping).length === 0) ? (
+                                <div className="text-center py-8 text-slate-500 text-xs">Sem mapeamentos.</div>
+                            ) : (
+                                Object.entries(activeModule.input_mapping).map(([key, path]) => (
+                                    <div key={key} className="bg-slate-800/50 rounded-md border border-slate-700/50 p-2 group hover:border-slate-600 transition-colors">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span 
+                                                className="text-yellow-500 font-mono text-xs font-bold bg-yellow-500/10 px-1.5 py-0.5 rounded cursor-pointer hover:bg-yellow-500/20"
+                                                onClick={() => copyToClipboard(`{{${key}}}`)}
+                                                title="Clique para copiar variável simples"
+                                            >
+                                                {`{{${key}}}`}
+                                            </span>
+                                            
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={() => copyLoopToClipboard(key, path)} className="p-1 hover:bg-blue-600/50 rounded text-slate-400 hover:text-blue-300" title="Copiar Snippet de Loop Inteligente">
+                                                    <Icon name="repeat" size={12} />
+                                                </button>
+                                                <button onClick={() => updateActiveModule('input_mapping_remove', null, key)} className="p-1 hover:bg-red-900/50 rounded text-slate-400 hover:text-red-400" title="Remover variável">
+                                                    <Icon name="trash-2" size={12} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {/* TÍTULO ADICIONADO AQUI PARA MOSTRAR CAMINHO COMPLETO NO HOVER */}
+                                        <div className="text-[10px] text-slate-400 font-mono truncate border-t border-slate-700/50 mt-1 pt-1" title={path}>
+                                            ← {path}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        <div className="border-t border-slate-700 p-4 bg-slate-800">
+                            <h3 className="text-xs font-bold text-slate-300 mb-2 flex items-center gap-2">
+                                <Icon name="plus-circle" size={14} /> Novo Mapeamento
+                            </h3>
+                            
+                            <div className="space-y-3 relative" ref={fieldSelectorRef}>
+                                <div>
+                                    <label className="block text-[10px] uppercase text-slate-500 font-bold mb-1">Fonte (Caminho Global)</label>
+                                    <div className="relative">
+                                        <input 
+                                            type="text"
+                                            value={sourceInputValue}
+                                            onChange={(e) => {
+                                                setSourceInputValue(e.target.value);
+                                                setShowFieldSelector(true);
+                                            }}
+                                            onFocus={() => setShowFieldSelector(true)}
+                                            placeholder="Ex: adventure.front.step1.lista_locais"
+                                            className="w-full text-xs bg-slate-900 border border-slate-600 text-slate-200 rounded px-3 py-2 focus:outline-none focus:border-blue-500 font-mono"
+                                        />
+                                        <div className="absolute right-2 top-2.5 text-slate-500 pointer-events-none">
+                                            <Icon name="search" size={12} />
+                                        </div>
+                                    </div>
+                                    
+                                    {showFieldSelector && (
+                                        <div className="absolute bottom-full mb-2 left-0 w-full bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto z-20">
+                                            <div className="sticky top-0 bg-slate-800 p-2 border-b border-slate-700 text-[10px] font-bold text-slate-400 uppercase">
+                                                Variáveis Disponíveis (Outputs de Outros Módulos)
+                                            </div>
+                                            {filteredAvailableFields.length === 0 && (
+                                                <div className="p-2 text-[10px] text-slate-500 italic">Nenhum output encontrado nos outros arquivos.</div>
+                                            )}
+                                            {filteredAvailableFields.map(field => (
+                                                <button 
+                                                    key={field}
+                                                    onClick={() => { setSourceInputValue(field); setShowFieldSelector(false); }}
+                                                    title={field} // ADDED title for full path on hover in selector
+                                                    className="w-full text-left px-3 py-2 text-xs font-mono text-slate-300 hover:bg-blue-600 hover:text-white border-b border-slate-700/50 truncate"
+                                                >
+                                                    {field}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] uppercase text-slate-500 font-bold mb-1">Nome da Variável Local (Apelido)</label>
+                                    <div className="flex items-center bg-slate-900 border border-slate-600 rounded px-2 focus-within:border-blue-500 transition-colors">
+                                        <span className="text-slate-500 text-xs font-mono select-none">{'{{'}</span>
+                                        <input 
+                                            type="text" 
+                                            value={newMappingKey}
+                                            onChange={(e) => setNewMappingKey(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                                            className="bg-transparent border-none text-xs text-white p-2 w-full focus:outline-none font-mono"
+                                            placeholder="nome_curto"
+                                        />
+                                        <span className="text-slate-500 text-xs font-mono select-none">{'}}'}</span>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    onClick={addMapping}
+                                    disabled={!newMappingKey || !sourceInputValue}
+                                    className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white text-xs font-bold py-2 rounded transition-colors flex justify-center items-center gap-2"
+                                >
+                                    <Icon name="link" size={14} />
+                                    Vincular Input
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

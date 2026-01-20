@@ -12,8 +12,17 @@ from utils.file_manager import FileManager
 
 class GameController:
     """
-    Controlador principal do fluxo do jogo.
-    Gerencia o estado (game_state), orquestra os módulos e corrige inconsistências de dados.
+    Controlador Principal (Maestro) do fluxo do jogo.
+    
+    Responsabilidade:
+        - Gerenciar o ciclo de vida da sessão (Start, Save, Load).
+        - Manter a "Fonte Única da Verdade" (game_state).
+        - Orquestrar chamadas de alto nível para o ModuleExecutor.
+    
+    Refatoração Data-Driven:
+        Esta classe NÃO define mais a estrutura interna dos dados de aventura.
+        Ela delega o armazenamento para o 'ModuleExecutor', que segue as regras
+        de 'output_mapping' dos JSONs.
     """
     
     def __init__(self):
@@ -23,7 +32,8 @@ class GameController:
         self.logger = logging.getLogger("GameController")
         self.debug_logger = DebugLogger()
         
-        # Estado Inicial
+        # Estado Inicial Base
+        # Define apenas a raiz. A estrutura interna cresce organicamente.
         self.game_state = {
             "context": {
                 "genre": "",
@@ -36,62 +46,62 @@ class GameController:
                     "formatted_matrix": ""
                 }
             },
-            "adventure": {} # Será populado/resetado no start_new_game
+            "adventure": {} 
         }
-        # Garante estrutura limpa na inicialização
         self._reset_adventure_state()
 
     def _reset_adventure_state(self):
         """
-        Reseta a estrutura de aventura para evitar contaminação de dados
-        entre sessões de jogo diferentes na mesma instância.
+        Reseta a estrutura de aventura.
+        Apenas limpa a raiz 'adventure' e define status inicial.
         """
         self.game_state["adventure"] = {
             "trama": {},
             "front": {
-                "step1": {},  # Archetype
-                "step2": {},  # Worldbuilder
-                "step3": {},  # Storyteller
                 "status": "pending"
             }
         }
 
     async def initialize(self):
+        """Setup assíncrono (se necessário no futuro)."""
         self.logger.info("Inicializando GameController...")
         pass
 
     def start_new_game(self, scenario_name: str, seed_data: Dict[str, Any] = None):
         """
-        Carrega o cenário e prepara o contexto inicial.
+        Inicia uma nova sessão de jogo.
+        
+        1. Limpa estado anterior.
+        2. Carrega configuração do cenário (JSON).
+        3. Prepara strings de contexto para os prompts.
         """
         self.logger.info(f"Iniciando novo jogo: {scenario_name}")
         
-        # 1. Limpeza de Estado Anterior (CRÍTICO)
+        # 1. Limpeza de Estado Anterior
         self._reset_adventure_state()
         
         # 2. Carregar Cenário
-        # Assume que o FileManager sabe buscar na pasta scenarios
         scenario_data = self.file_manager.load_json(f"{scenario_name}.json", subdir="scenarios")
         
         if not scenario_data:
-            # Fallback para tentar achar o arquivo direto se o nome for complexo
+            # Fallback de busca
             if os.path.exists(f"scenarios/{scenario_name}.json"):
                 with open(f"scenarios/{scenario_name}.json", 'r', encoding='utf-8') as f:
                     scenario_data = json.load(f)
             else:
                 raise FileNotFoundError(f"Cenário '{scenario_name}' não encontrado.")
 
-        # 3. Popula Contexto Básico
+        # 3. Popula Contexto Básico (Genre, Scopes, Locais)
         self.game_state["context"]["genre"] = scenario_data.get("genre", "Generic")
         self.game_state["context"]["supported_scopes_str"] = "\n".join(scenario_data.get("supported_scopes", []))
         
-        # Locais e Arquétipos do Cenário (Stringfy para o prompt)
+        # Formata listas como strings para injeção direta em prompts
         locs = scenario_data.get("locations", [])
         archs = scenario_data.get("archetypes", [])
         self.game_state["context"]["available_locations_str"] = ", ".join(locs) if isinstance(locs, list) else str(locs)
         self.game_state["context"]["available_archetypes_str"] = ", ".join(archs) if isinstance(archs, list) else str(archs)
 
-        # 4. Seeds (Sementes da Trama)
+        # 4. Seeds (Dados aleatórios de entrada, ex: Dominus)
         if seed_data:
             self.game_state["context"]["seeds"] = seed_data
         
@@ -99,11 +109,15 @@ class GameController:
 
     def step_generate_trama(self) -> Dict[str, Any]:
         """
-        Executa o módulo de Trama e corrige dados para os próximos passos.
+        Passo 1: Geração da Trama Central.
+        
+        Executa o módulo 'core_trama_generator'.
+        NOTA: Não salva manualmente o resultado. O 'execute_and_apply' 
+        lê o output_mapping do JSON e salva em 'adventure.trama' automaticamente.
         """
         self.logger.info(">>> Gerando Trama...")
         
-        trama_result = self.module_executor.execute(
+        trama_result = self.module_executor.execute_and_apply(
             "core_trama_generator", 
             self.game_state
         )
@@ -111,12 +125,12 @@ class GameController:
         if not trama_result:
             raise Exception("Falha na geração da Trama.")
         
-        self.set_trama_state(trama_result)
         self.debug_logger.log_step("Trama Gerada", trama_result)
         
         return trama_result
 
     def update_context(self, context_data: Dict[str, Any]):
+        """Atualiza variáveis de contexto manualmente (se necessário)."""
         for key, value in context_data.items():
             if key in self.game_state["context"]:
                 if isinstance(self.game_state["context"][key], dict) and isinstance(value, dict):
@@ -126,23 +140,18 @@ class GameController:
         
         self.logger.info(f"Contexto atualizado. Genre: {self.game_state['context'].get('genre')}")
 
-    def set_trama_state(self, trama_data: Dict[str, Any]):
-        self.game_state["adventure"]["trama"] = trama_data
-        self.logger.info("Estado da Trama definido.")
-
     def save_game(self, filename: str = None):
-        """Salva o estado atual."""
+        """Serializa e salva o game_state atual em disco."""
         if not filename:
             timestamp = time.strftime("%Y%m%d_%H%M%S")
             filename = f"save_{timestamp}.json"
         
-        # Garante que o diretório existe (Segurança)
         os.makedirs("saves", exist_ok=True)
-        
         self.file_manager.save_json(filename, self.game_state, subdir="saves")
         print(f"[GameController] Jogo salvo em: saves/{filename}")
 
     def load_game(self, filename: str):
+        """Carrega um game_state do disco e restaura a sessão."""
         data = self.file_manager.load_json(filename, subdir="saves")
         if data:
             self.game_state = data
@@ -152,22 +161,30 @@ class GameController:
 
     async def generate_adventure_front_pipeline(self) -> Dict[str, Any]:
         """
-        Executa o Pipeline de 3 Estágios para gerar a Frente de Aventura.
+        Executa o Pipeline da Frente de Aventura (Steps 1, 2 e 3).
+        
+        Fluxo:
+            1. Arquétipo & Locais
+            2. Worldbuilding & Ameaças
+            3. Storytelling & Presságios
+            
+        O Controller apenas comanda a sequência. A passagem de dados entre
+        os passos ocorre via game_state (Input Mapping -> Output Mapping).
         """
         self.logger.info("=== Iniciando Pipeline da Frente de Aventura ===")
         
         try:
-            # Inicialização defensiva para garantir que 'front' existe
-            self.game_state["adventure"].setdefault("front", {
-                "step1": {}, "step2": {}, "step3": {}, "status": "pending"
-            })
+            # Inicialização de estrutura básica para flags de controle
+            if "front" not in self.game_state["adventure"]:
+                self.game_state["adventure"]["front"] = {}
+            self.game_state["adventure"]["front"]["status"] = "pending"
 
             # -------------------------------------------------------
             # STEP 1: ARQUÉTIPO & LOCAIS
             # -------------------------------------------------------
             self.logger.info(">>> Executando Step 1: Definição de Arquétipo...")
             
-            step1_result = self.module_executor.execute(
+            step1_result = self.module_executor.execute_and_apply(
                 "step1_front_archetype", 
                 self.game_state
             )
@@ -175,14 +192,13 @@ class GameController:
             if not step1_result:
                 raise Exception("Falha na execução do Step 1 (Arquétipo).")
             
-            self.game_state["adventure"]["front"]["step1"] = step1_result
             self.debug_logger.log_step("Front Step 1", step1_result)
 
             # -------------------------------------------------------
             # STEP 2: WORLDBUILDER (AMEAÇAS)
             # -------------------------------------------------------
             self.logger.info(">>> Executando Step 2: Construção de Mundo...")
-            step2_result = self.module_executor.execute(
+            step2_result = self.module_executor.execute_and_apply(
                 "step2_front_worldbuilder", 
                 self.game_state
             )
@@ -190,14 +206,13 @@ class GameController:
             if not step2_result:
                 raise Exception("Falha na execução do Step 2 (Worldbuilder).")
 
-            self.game_state["adventure"]["front"]["step2"] = step2_result
             self.debug_logger.log_step("Front Step 2", step2_result)
 
             # -------------------------------------------------------
             # STEP 3: STORYTELLER (PRESSÁGIOS)
             # -------------------------------------------------------
             self.logger.info(">>> Executando Step 3: Criação de Presságios...")
-            step3_result = self.module_executor.execute(
+            step3_result = self.module_executor.execute_and_apply(
                 "step3_front_storyteller", 
                 self.game_state
             )
@@ -205,7 +220,7 @@ class GameController:
             if not step3_result:
                 raise Exception("Falha na execução do Step 3 (Storyteller).")
 
-            self.game_state["adventure"]["front"]["step3"] = step3_result
+            # Finalização: Atualiza status de controle (flag de sistema)
             self.game_state["adventure"]["front"]["status"] = "completed"
             self.debug_logger.log_step("Front Step 3", step3_result)
 
@@ -219,10 +234,9 @@ class GameController:
 
         except Exception as e:
             self.logger.error(f"Erro crítico no Pipeline da Frente: {e}")
-            # Garante que 'front' existe antes de setar o status
-            if "front" in self.game_state["adventure"]:
-                self.game_state["adventure"]["front"]["status"] = "error"
+            self.game_state["adventure"]["front"]["status"] = "error"
             raise e
 
     def get_full_state(self) -> Dict[str, Any]:
+        """Retorna o estado completo para debug ou serialização."""
         return self.game_state

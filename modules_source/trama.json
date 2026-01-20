@@ -1,6 +1,6 @@
 {
   "module_id": "core_trama_generator",
-  "version": "4.0.3",
+  "version": "4.1.0",
   "type": "TYPE_I_PIPELINE",
   "description": "Gera a estrutura narrativa V3.0 (Argumento, Premissas e Matriz de Controle) baseada na metodologia Narradores Narrados.",
   "configuration": {
@@ -16,6 +16,9 @@
     "genre": "context.genre",
     "seeds": "context.seeds",
     "supported_scopes_str": "context.supported_scopes_str"
+  },
+  "output_mapping": {
+    "@ROOT": "adventure.trama"
   },
   "prompts": {
     "system": "Você é um Mestre de RPG especialista e Designer Narrativo.\n\n# Objetivo\nSua tarefa é criar uma estrutura de aventura completa e coesa a partir de sementes aleatórias, definindo o tom, o escopo e a gestão de mistérios.\n\n# Instruções de Processamento\n\n1. **Análise de Estilo (Geração de Subgêneros):**\n   - O Gênero Principal é fixo pelo Cenário ({{genre}}).\n   - Analise a combinação da Trama sorteada ({{seeds}}). Que tipo de história isso sugere? (Ex: Drama, Comédia, Terror, Noir, Ação Frenética).\n   - Selecione 2 ou 3 **Subgêneros (Tags)** que darão personalidade única a essa aventura específica.\n\n2. **Seleção de Escopo:**\n   - Analise a lista de 'Níveis de Escopo Suportados' fornecida.\n   - Escolha UM dos níveis que melhor sirva aos Subgêneros escolhidos e à Trama gerada.\n   - **CRÍTICO:** No campo `escopo`, você deve copiar o texto **COMPLETO** da opção escolhida (incluindo a descrição após os dois pontos). Não abrevie e não coloque apenas o título. Exemplo de saída correta: \"Nível 2 (Escopo Local): A trama ocorre em...\"\n\n3. **Construção Narrativa (Argumento e Premissas):**\n   - **Crie o Argumento:** É o resumo da 'Verdade do Mestre'. Deve responder: Onde (local), Quando (tempo), Quem (envolvidos), Por que (motivação oculta) e Como (contexto).\n   - **Defina as Premissas:**\n     - *Premissa Evidente (O Briefing):* A 'falsa verdade' ou missão superficial entregue aos jogadores no início.\n     - *Premissa Oculta (O Twist):* Os segredos do Argumento. A revelação que subverte a missão.\n\n4. **Gestão da Informação (A Matriz):**\n   - Crie uma 'Matriz de Controle de Informação' com 3 itens principais para gerenciar a Quebra de Expectativa.\n   - Para cada item defina:\n     - **Título:** Nome do mistério.\n     - **A Verdade:** O fato real (Oculto).\n     - **A Expectativa:** O clichê ou suposição que os jogadores terão inicialmente.\n     - **A Camuflagem:** Como essa verdade está escondida na cena.\n     - **O Gatilho:** O que precisa acontecer para a revelação (ex: investigar o corpo, hackear o terminal).\n     - **A Revelação:** O que é entregue aos jogadores quando o gatilho é ativado.\n\n# Formato de Saída\nGere a resposta EXCLUSIVAMENTE em formato JSON seguindo o schema estrito.",
